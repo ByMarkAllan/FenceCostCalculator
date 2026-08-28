@@ -1,0 +1,3699 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="RanchAssist Fence Cost Estimator — map a proposed ranch fence and calculate wire, posts, braces, gates, electric components, labor, and estimated project cost.">
+  <meta name="theme-color" content="#0A0A09">
+  <title>RanchAssist | Fence Cost Estimator</title>
+
+  <link rel="preconnect" href="https://api.mapbox.com">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-draw@1.5.1/dist/mapbox-gl-draw.css">
+
+  <script>
+    window.RANCHASSIST_CONFIG = <?!= runtimeConfigJson ?>;
+  </script>
+
+  <!-- ============================================================
+     RANCHASSIST STYLES
+     Edit visual styling here.
+============================================================ -->
+<style>
+  :root {
+    --ra-black: #0A0A09;
+    --ra-white: #FFFFFF;
+    --ra-canvas: #F7F7F4;
+    --ra-surface: #FFFFFF;
+    --ra-surface-soft: #F1F1ED;
+    --ra-text: #171715;
+    --ra-text-secondary: #666660;
+    --ra-text-tertiary: #81817A;
+    --ra-border: #DEDED8;
+    --ra-border-strong: #C5C5BD;
+    --ra-green: #4C6752;
+    --ra-green-soft: #E7EEE8;
+    --ra-warning: #A16C32;
+    --ra-warning-soft: #F4ECE1;
+    --ra-danger: #B44845;
+    --ra-danger-soft: #F5E6E5;
+    --ra-info: #536C80;
+    --ra-radius-sm: 6px;
+    --ra-radius-md: 8px;
+    --ra-radius-lg: 12px;
+    --ra-radius-xl: 16px;
+    --ra-shadow-floating: 0 1px 2px rgba(10,10,9,.04), 0 8px 24px rgba(10,10,9,.06);
+    --ra-duration-fast: 120ms;
+    --ra-duration: 180ms;
+    --ra-ease: cubic-bezier(.2,.8,.2,1);
+    --topbar-h: 70px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  html { background: var(--ra-canvas); }
+  body {
+    color: var(--ra-text);
+    background: var(--ra-canvas);
+    font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .52; }
+  input, select, textarea, button, summary { outline: none; }
+  a { color: inherit; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .92em; }
+  .hidden { display: none !important; }
+  .sr-only {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ra-black);
+    outline-offset: 2px;
+  }
+
+  .app-shell { min-height: 100dvh; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    min-height: var(--topbar-h);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(247,247,244,.97);
+    border-bottom: 1px solid var(--ra-border);
+    backdrop-filter: blur(14px);
+  }
+
+  .brand-lockup {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .ra-logo { width: 168px; height: auto; display: block; }
+  .ra-logo-text { font-weight: 800; letter-spacing: -.04em; }
+  .brand-divider { width: 1px; height: 28px; background: var(--ra-border-strong); }
+  .tool-lockup { min-width: 0; display: grid; line-height: 1.15; }
+  .tool-lockup strong { font-size: 13px; font-weight: 650; white-space: nowrap; }
+  .tool-lockup small { margin-top: 4px; color: var(--ra-text-secondary); font-size: 11px; white-space: nowrap; }
+  .topbar-spacer { flex: 1; }
+
+  .btn {
+    min-height: 42px;
+    padding: 9px 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--ra-border-strong);
+    border-radius: 7px;
+    background: var(--ra-white);
+    color: var(--ra-text);
+    font-size: 13px;
+    font-weight: 620;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background var(--ra-duration-fast) var(--ra-ease),
+                border-color var(--ra-duration-fast) var(--ra-ease),
+                color var(--ra-duration-fast) var(--ra-ease),
+                transform var(--ra-duration-fast) var(--ra-ease);
+  }
+  .btn:hover { border-color: var(--ra-text-secondary); background: var(--ra-surface-soft); }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--ra-black); border-color: var(--ra-black); color: var(--ra-white); }
+  .btn-primary:hover { background: #242422; border-color: #242422; }
+  .btn-danger { background: var(--ra-white); border-color: #D6A7A5; color: var(--ra-danger); }
+  .btn-danger:hover { background: var(--ra-danger-soft); border-color: var(--ra-danger); }
+  .btn-icon { width: 42px; padding: 0; font-size: 22px; }
+  .danger-text { color: var(--ra-danger) !important; }
+
+  .icon { width: 18px; height: 18px; flex: 0 0 auto; }
+
+  .project-status {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    color: var(--ra-text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ra-warning); }
+  .project-status.saved .status-dot { background: var(--ra-green); }
+  .project-status.opened .status-dot { background: var(--ra-info); }
+
+  .action-menu { position: relative; }
+  .action-menu > summary { list-style: none; }
+  .action-menu > summary::-webkit-details-marker { display: none; }
+  .action-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 205px;
+    padding: 6px;
+    display: grid;
+    background: var(--ra-white);
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-md);
+    box-shadow: var(--ra-shadow-floating);
+  }
+  .action-popover-right { left: auto; right: 0; }
+  .action-popover button {
+    min-height: 40px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: var(--ra-radius-sm);
+    background: transparent;
+    color: var(--ra-text);
+    text-align: left;
+    font-size: 13px;
+  }
+  .action-popover button:hover, .action-popover button:focus-visible { background: var(--ra-surface-soft); }
+  .menu-divider { height: 1px; margin: 5px 4px; background: var(--ra-border); }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 68%) minmax(360px, 32%);
+    min-height: calc(100dvh - var(--topbar-h));
+  }
+
+  .map-pane {
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100dvh - var(--topbar-h));
+    min-height: 620px;
+    overflow: hidden;
+    background: #E3E3DE;
+    border-right: 1px solid var(--ra-border);
+  }
+  #map { position: absolute; inset: 0; }
+
+  .map-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(247,247,244,.92);
+    backdrop-filter: blur(4px);
+  }
+  .config-card {
+    width: min(460px, 100%);
+    padding: 24px;
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-lg);
+    background: var(--ra-white);
+    box-shadow: var(--ra-shadow-floating);
+  }
+  .config-card h2 { margin: 5px 0 10px; font-size: 24px; letter-spacing: -.035em; }
+  .config-card p { margin: 0 0 18px; color: var(--ra-text-secondary); font-size: 14px; line-height: 1.65; }
+
+  .eyebrow {
+    color: var(--ra-text-secondary);
+    font-size: 11px;
+    font-weight: 720;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+  }
+
+  .map-search {
+    position: absolute;
+    z-index: 20;
+    left: 16px;
+    top: 16px;
+    width: min(520px, calc(100% - 90px));
+  }
+  .search-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 6px;
+    align-items: center;
+    padding: 6px;
+    background: rgba(255,255,255,.97);
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-md);
+    box-shadow: var(--ra-shadow-floating);
+  }
+  .map-search-icon { margin-left: 5px; color: var(--ra-text-secondary); }
+  .search-row input {
+    min-width: 0;
+    height: 38px;
+    border: 0;
+    background: transparent;
+    color: var(--ra-text);
+    font-size: 14px;
+  }
+  .search-results {
+    margin-top: 6px;
+    overflow: hidden;
+    background: var(--ra-white);
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-md);
+    box-shadow: var(--ra-shadow-floating);
+  }
+  .search-result {
+    width: 100%;
+    min-height: 52px;
+    padding: 10px 12px;
+    display: block;
+    border: 0;
+    border-bottom: 1px solid var(--ra-border);
+    background: var(--ra-white);
+    color: var(--ra-text);
+    text-align: left;
+  }
+  .search-result:last-child { border-bottom: 0; }
+  .search-result:hover, .search-result:focus-visible { background: var(--ra-surface-soft); }
+  .search-result strong { display: block; font-size: 13px; }
+  .search-result span { display: block; margin-top: 3px; color: var(--ra-text-secondary); font-size: 11px; }
+
+  .map-stats {
+    position: absolute;
+    z-index: 15;
+    top: 16px;
+    right: 16px;
+    width: 180px;
+    padding: 13px 14px;
+    background: var(--ra-black);
+    color: var(--ra-white);
+    border-radius: var(--ra-radius-md);
+    box-shadow: var(--ra-shadow-floating);
+    font-variant-numeric: tabular-nums;
+  }
+  .map-stats small { display: block; color: #C5C5BD; text-transform: uppercase; letter-spacing: .09em; font-size: 10px; font-weight: 700; }
+  .map-stat-value { margin-top: 2px; font-size: 25px; font-weight: 650; letter-spacing: -.04em; }
+  .map-stat-mini { margin-top: 7px; display: flex; justify-content: space-between; gap: 10px; color: #DEDED8; font-size: 11px; }
+
+  .map-toolbar {
+    position: absolute;
+    z-index: 18;
+    left: 16px;
+    bottom: 18px;
+    max-width: calc(100% - 32px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .map-toolbar .btn { background: rgba(255,255,255,.98); box-shadow: 0 1px 2px rgba(10,10,9,.05); }
+  .map-toolbar .btn-primary,
+  .map-toolbar .btn.active { background: var(--ra-black); color: var(--ra-white); border-color: var(--ra-black); }
+
+  .panel-pane { min-width: 0; background: var(--ra-canvas); }
+  .panel-inner { width: 100%; padding: 24px; }
+
+  .hero-row {
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .panel-title { margin: 5px 0 7px; font-size: clamp(30px, 3vw, 42px); line-height: 1; letter-spacing: -.045em; font-weight: 620; }
+  .panel-copy { margin: 0; color: var(--ra-text-secondary); font-size: 14px; line-height: 1.6; }
+
+  .badge {
+    min-height: 28px;
+    padding: 5px 9px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--ra-border);
+    border-radius: 999px;
+    background: var(--ra-white);
+    color: var(--ra-text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ra-green); }
+
+  .session-notice {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--ra-border);
+    border-radius: var(--ra-radius-md);
+    background: var(--ra-surface-soft);
+  }
+  .session-notice div { display: grid; gap: 3px; }
+  .session-notice strong { font-size: 12px; }
+  .session-notice span { color: var(--ra-text-secondary); font-size: 12px; line-height: 1.5; }
+
+  .section-card {
+    margin-bottom: 12px;
+    padding: 20px;
+    background: var(--ra-white);
+    border: 1px solid var(--ra-border);
+    border-radius: var(--ra-radius-lg);
+  }
+  .project-card { padding: 14px; }
+  .section-head {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .section-title { margin: 0; font-size: 18px; line-height: 1.2; letter-spacing: -.025em; font-weight: 640; }
+  .section-sub { margin-top: 4px; color: var(--ra-text-secondary); font-size: 12px; line-height: 1.5; }
+  .help { color: var(--ra-text-secondary); font-size: 11px; line-height: 1.45; }
+
+  .summary-grid {
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--ra-border-strong);
+    border-left: 1px solid var(--ra-border-strong);
+  }
+  .summary-card {
+    min-width: 0;
+    padding: 13px 12px;
+    background: var(--ra-white);
+    border-right: 1px solid var(--ra-border-strong);
+    border-bottom: 1px solid var(--ra-border-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-card label { display: block; color: var(--ra-text-secondary); text-transform: uppercase; letter-spacing: .08em; font-size: 9px; font-weight: 750; }
+  .summary-card strong { display: block; margin-top: 4px; font-size: 20px; letter-spacing: -.03em; font-weight: 660; }
+  .summary-card span { display: block; margin-top: 3px; color: var(--ra-text-tertiary); font-size: 10px; }
+  .summary-primary { background: var(--ra-black); color: var(--ra-white); }
+  .summary-primary label, .summary-primary span { color: #C5C5BD; }
+
+  .stepper {
+    margin: 0 0 12px;
+    padding-bottom: 3px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .step-tab {
+    min-height: 38px;
+    padding: 8px 10px;
+    flex: 0 0 auto;
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-sm);
+    background: var(--ra-white);
+    color: var(--ra-text-secondary);
+    font-size: 11px;
+    font-weight: 650;
+  }
+  .step-tab.active { background: var(--ra-black); border-color: var(--ra-black); color: var(--ra-white); }
+
+  .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .field-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .span-2 { grid-column: span 2; }
+  .field { min-width: 0; }
+  .field label {
+    min-height: 21px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ra-800, #353532);
+    font-size: 12px;
+    font-weight: 620;
+  }
+  .field-tag {
+    color: var(--ra-text-tertiary);
+    font-size: 9px;
+    font-weight: 720;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .field input, .field select, .field textarea,
+  .gate-row input, .gate-row select, .price-row input, .unit-cost {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 10px;
+    border: 1px solid #CFCFC8;
+    border-radius: var(--ra-radius-sm);
+    background: var(--ra-white);
+    color: var(--ra-text);
+    font-size: 14px;
+  }
+  .field textarea { min-height: 92px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus,
+  .gate-row input:focus, .gate-row select:focus, .price-row input:focus, .unit-cost:focus {
+    border-color: var(--ra-black);
+    box-shadow: 0 0 0 3px rgba(10,10,9,.08);
+  }
+
+  .choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .choice-card {
+    min-height: 72px;
+    padding: 11px;
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-md);
+    background: var(--ra-white);
+    color: var(--ra-text);
+    text-align: left;
+  }
+  .choice-card:hover { background: var(--ra-surface-soft); }
+  .choice-card.selected { border-color: var(--ra-black); box-shadow: inset 0 0 0 1px var(--ra-black); background: var(--ra-surface-soft); }
+  .choice-card strong { display: block; font-size: 12px; }
+  .choice-card span { display: block; margin-top: 3px; color: var(--ra-text-secondary); font-size: 10px; line-height: 1.4; }
+
+  .notice {
+    margin-top: 12px;
+    padding: 11px 12px;
+    border: 1px solid var(--ra-border);
+    border-radius: var(--ra-radius-md);
+    background: var(--ra-surface-soft);
+    color: var(--ra-text-secondary);
+    font-size: 11px;
+    line-height: 1.55;
+  }
+  .notice.success { border-color: #C9D8CB; background: var(--ra-green-soft); color: #344B39; }
+  .notice.error { border-color: #D8B5B3; background: var(--ra-danger-soft); color: #803B38; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .switch { position: relative; width: 46px; height: 26px; flex: 0 0 auto; }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .slider {
+    position: absolute; inset: 0;
+    border: 1px solid var(--ra-border-strong);
+    border-radius: 999px;
+    background: var(--ra-surface-soft);
+    transition: var(--ra-duration-fast) var(--ra-ease);
+  }
+  .slider::after {
+    content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+    border-radius: 50%; background: var(--ra-white); border: 1px solid var(--ra-border-strong);
+    transition: var(--ra-duration-fast) var(--ra-ease);
+  }
+  .switch input:checked + .slider { background: var(--ra-black); border-color: var(--ra-black); }
+  .switch input:checked + .slider::after { transform: translateX(20px); border-color: var(--ra-white); }
+  .switch input:focus-visible + .slider { box-shadow: 0 0 0 3px rgba(10,10,9,.12); }
+
+  .gate-list { display: grid; gap: 8px; }
+  .gate-row {
+    display: grid;
+    grid-template-columns: 1.25fr .75fr .55fr .8fr 42px;
+    gap: 8px;
+    align-items: end;
+    padding: 10px;
+    border: 1px solid var(--ra-border);
+    border-radius: var(--ra-radius-md);
+    background: var(--ra-canvas);
+  }
+  .gate-row .mini-label { display: block; margin-bottom: 4px; color: var(--ra-text-secondary); font-size: 9px; font-weight: 720; letter-spacing: .06em; text-transform: uppercase; }
+  .remove-gate { align-self: end; }
+
+  .price-drawer { display: grid; gap: 0; border-top: 1px solid var(--ra-border); }
+  .price-row {
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 110px;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--ra-border);
+  }
+  .price-row label { color: var(--ra-text-secondary); font-size: 12px; }
+
+  details > summary { cursor: pointer; }
+  details > summary::marker { color: var(--ra-text-secondary); }
+
+  .bom-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--ra-border); }
+  .bom { width: 100%; min-width: 650px; border-collapse: collapse; }
+  .bom th {
+    padding: 10px;
+    border-bottom: 1px solid var(--ra-border);
+    background: var(--ra-surface-soft);
+    color: var(--ra-text-secondary);
+    font-size: 10px;
+    font-weight: 720;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .bom td { padding: 10px; border-bottom: 1px solid var(--ra-border); font-size: 11px; vertical-align: middle; }
+  .bom tr:last-child td { border-bottom: 0; }
+  .bom .qty, .bom .money { text-align: right; font-variant-numeric: tabular-nums; }
+  .bom-category { color: var(--ra-text-secondary); font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+  .bom-item { font-weight: 600; }
+  .unit-cost { width: 92px; min-height: 36px; text-align: right; font-size: 12px; }
+
+  .totals { margin-top: 14px; border-top: 2px solid var(--ra-black); padding-top: 10px; }
+  .total-line {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    color: var(--ra-text-secondary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .grand-total {
+    margin-top: 8px;
+    padding-top: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    border-top: 1px solid var(--ra-border);
+  }
+  .grand-total label { display: block; font-size: 12px; font-weight: 650; }
+  .grand-total strong { font-size: 30px; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+
+  .calculation-card details > summary { font-size: 13px; font-weight: 650; }
+  .calculation-details { margin-top: 14px; border-top: 1px solid var(--ra-border); }
+  .formula-row {
+    display: grid;
+    grid-template-columns: 145px minmax(0,1fr);
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--ra-border);
+    font-size: 11px;
+  }
+  .formula-row span { color: var(--ra-text-secondary); }
+  .formula-row code { overflow-wrap: anywhere; color: var(--ra-text); }
+
+  .footer-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 25;
+    margin: 14px -24px -24px;
+    padding: 11px 24px calc(11px + env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: flex-end;
+    gap: 7px;
+    background: rgba(247,247,244,.96);
+    border-top: 1px solid var(--ra-border);
+    backdrop-filter: blur(12px);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(10,10,9,.52);
+  }
+  .modal {
+    width: min(600px, 100%);
+    max-height: min(760px, calc(100dvh - 36px));
+    overflow: auto;
+    background: var(--ra-white);
+    border: 1px solid var(--ra-border-strong);
+    border-radius: var(--ra-radius-lg);
+    box-shadow: var(--ra-shadow-floating);
+  }
+  .modal-small { width: min(470px, 100%); }
+  .modal-head {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+  }
+  .modal-head h3 { margin: 4px 0 0; font-size: 22px; letter-spacing: -.03em; }
+  .modal-body { padding: 18px 20px 20px; }
+  .modal-actions {
+    padding: 12px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--ra-border);
+    background: var(--ra-surface-soft);
+  }
+
+  .toast-wrap {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 300;
+    width: min(360px, calc(100% - 36px));
+    display: grid;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    padding: 12px 14px;
+    border: 1px solid #343430;
+    border-radius: var(--ra-radius-md);
+    background: var(--ra-black);
+    color: var(--ra-white);
+    box-shadow: var(--ra-shadow-floating);
+    font-size: 12px;
+    line-height: 1.5;
+    transition: opacity 220ms var(--ra-ease), transform 220ms var(--ra-ease);
+  }
+  .toast.error { background: #7F302E; border-color: #7F302E; }
+  .toast.success { background: #314A37; border-color: #314A37; }
+
+  .mapboxgl-ctrl-group {
+    overflow: hidden;
+    border: 1px solid var(--ra-border-strong) !important;
+    border-radius: var(--ra-radius-md) !important;
+    box-shadow: var(--ra-shadow-floating) !important;
+  }
+  .mapboxgl-ctrl-group button { width: 36px; height: 36px; }
+  .mapboxgl-popup-content { border-radius: var(--ra-radius-md); box-shadow: var(--ra-shadow-floating); font: 12px "Geist","Inter",sans-serif; }
+
+  @media (max-width: 1180px) {
+    .desktop-project-action { display: none; }
+    .workspace { grid-template-columns: minmax(0, 62%) minmax(360px, 38%); }
+    .tool-lockup small { display: none; }
+  }
+
+  @media (max-width: 1023px) {
+    :root { --topbar-h: 66px; }
+    .topbar { padding: 8px 12px; }
+    .ra-logo { width: 148px; }
+    .brand-divider, .tool-lockup { display: none; }
+    .project-status { display: none; }
+
+    .workspace { display: block; min-height: 0; }
+    .map-pane {
+      position: relative;
+      top: auto;
+      height: 54dvh;
+      min-height: 430px;
+      border-right: 0;
+      border-bottom: 1px solid var(--ra-border);
+    }
+    .panel-inner { padding: 20px; }
+    .map-search { left: 12px; top: 12px; width: calc(100% - 84px); }
+    .map-stats { top: auto; right: 12px; bottom: 68px; width: 158px; padding: 11px 12px; }
+    .map-toolbar { left: 12px; bottom: 12px; max-width: calc(100% - 24px); }
+    .footer-actions { margin-left: -20px; margin-right: -20px; margin-bottom: -20px; padding-left: 20px; padding-right: 20px; }
+  }
+
+  @media (max-width: 767px) {
+    .topbar { gap: 6px; }
+    .ra-logo { width: 132px; }
+    .action-menu#exportMenu > summary,
+    .action-menu#shareMenu > summary,
+    .action-menu#projectMenu > summary {
+      min-width: 44px;
+      min-height: 46px;
+      padding: 9px 11px;
+    }
+    .action-menu#exportMenu > summary { font-size: 0; }
+    .action-menu#exportMenu > summary::after { content: "Export"; font-size: 12px; }
+    .action-menu#shareMenu > summary { font-size: 0; }
+    .action-menu#shareMenu > summary::after { content: "Share"; font-size: 12px; }
+    .action-menu#projectMenu > summary { font-size: 0; }
+    .action-menu#projectMenu > summary::after { content: "Project"; font-size: 12px; }
+
+    .map-pane { height: 52dvh; min-height: 390px; }
+    .map-search { width: calc(100% - 24px); right: 12px; }
+    .map-stats { width: 145px; bottom: 72px; }
+    .map-stat-value { font-size: 21px; }
+    .map-toolbar { overflow-x: auto; flex-wrap: nowrap; }
+    .map-toolbar .btn { min-height: 46px; }
+
+    .panel-inner { padding: 16px; }
+    .hero-row { display: block; }
+    .hero-row .badge { margin-top: 10px; }
+    .panel-title { font-size: 32px; }
+    .field-grid, .field-grid.three { grid-template-columns: 1fr; }
+    .span-2 { grid-column: auto; }
+    .field input, .field select, .field textarea,
+    .gate-row input, .gate-row select, .price-row input, .unit-cost { min-height: 48px; }
+
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .summary-primary { grid-column: span 2; }
+    .step-tab { min-height: 44px; }
+
+    .choice-grid { grid-template-columns: 1fr; }
+    .choice-card { min-height: 68px; }
+    .gate-row {
+      grid-template-columns: 1fr 1fr;
+      align-items: end;
+    }
+    .gate-row .remove-gate { width: 48px; height: 48px; }
+    .price-row { grid-template-columns: 1fr 110px; }
+
+    .bom { min-width: 590px; }
+    .formula-row { grid-template-columns: 1fr; gap: 3px; }
+
+    .footer-actions {
+      margin: 12px -16px -16px;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      justify-content: stretch;
+      overflow-x: auto;
+    }
+    .footer-actions .btn { min-height: 48px; flex: 1 0 auto; }
+
+    .modal-backdrop { align-items: end; padding: 0; }
+    .modal {
+      width: 100%;
+      max-height: 88dvh;
+      border-radius: 14px 14px 0 0;
+      border-left: 0;
+      border-right: 0;
+      border-bottom: 0;
+    }
+    .modal-actions .btn { min-height: 48px; }
+  }
+
+  @media (max-width: 520px) {
+    .ra-logo { width: 118px; }
+    .topbar { padding-left: 10px; padding-right: 10px; }
+    .action-menu > summary { padding-left: 9px !important; padding-right: 9px !important; }
+    .map-stats { display: none; }
+    .map-toolbar { bottom: 10px; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .topbar, .map-pane, .stepper, .footer-actions, .hide-print, .mapboxgl-ctrl, .session-notice { display: none !important; }
+    .workspace { display: block; }
+    .panel-pane { background: #fff; }
+    .panel-inner { padding: 0; }
+    .section-card, .summary-card { break-inside: avoid; box-shadow: none; }
+    .step-panel { display: block !important; }
+    .section-card { border-color: #bbb; }
+    .bom-wrap { overflow: visible; }
+    .bom { min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      transition-duration: .001ms !important;
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand-lockup" href="https://ranchassist.com/tools" target="_top" rel="noopener" aria-label="RanchAssist tools">
+        
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="tool-lockup">
+          <strong>Fence Cost Estimator</strong>
+          <small>SmoothWireFence.com</small>
+        </span>
+      </a>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="project-status" id="projectStatus" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="projectStatusText">Unsaved</span>
+      </div>
+
+      <button class="btn desktop-project-action" id="openProjectBtn" type="button">Open Project</button>
+      <button class="btn desktop-project-action" id="saveProjectBtn" type="button">Save Project</button>
+
+      <details class="action-menu hide-print" id="projectMenu">
+        <summary class="btn">Project</summary>
+        <div class="action-popover">
+          <button type="button" data-action="open-project">Open Project</button>
+          <button type="button" data-action="save-project">Save Project</button>
+          <button type="button" id="duplicateProjectBtn">Duplicate Project</button>
+          <div class="menu-divider"></div>
+          <button type="button" class="danger-text" id="clearSessionBtn">Clear Session</button>
+        </div>
+      </details>
+
+      <details class="action-menu hide-print" id="exportMenu">
+        <summary class="btn">Export</summary>
+        <div class="action-popover">
+          <button type="button" id="exportPdfTopBtn">PDF</button>
+          <button type="button" id="exportCsvTopBtn">CSV</button>
+          <button type="button" id="exportPngBtn">PNG / Map</button>
+          <button type="button" id="exportGeoJsonBtn">GeoJSON</button>
+          <button type="button" id="printTopBtn">Print</button>
+        </div>
+      </details>
+
+      <details class="action-menu hide-print" id="shareMenu">
+        <summary class="btn btn-primary">Share</summary>
+        <div class="action-popover action-popover-right">
+          <button type="button" id="shareTopBtn">Email Estimate</button>
+          <button type="button" id="copySummaryTopBtn">Copy Summary</button>
+        </div>
+      </details>
+
+      <input id="projectFileInput" type="file" accept=".ra,application/x-ranchassist-project,application/json" hidden="">
+    </header>
+
+    <main class="workspace">
+      <section class="map-pane" aria-label="Fence map">
+        <div id="map"></div>
+
+        <div class="map-scrim hidden" id="mapConfigScrim">
+          <div class="config-card" role="status" aria-live="polite">
+            <div class="eyebrow">Administrator configuration</div>
+            <h2>Map service unavailable</h2>
+            <p id="mapConfigMessage">This RanchAssist deployment has not been fully configured by the site administrator. Your project data remains available, but mapping cannot start right now.</p>
+            <button class="btn btn-primary" id="retryMapBtn" type="button">Retry Map</button>
+          </div>
+        </div>
+
+        <div class="map-search">
+          <div class="search-row">
+            <svg class="icon map-search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            <label class="sr-only" for="addressSearch">Search property address or place</label>
+            <input id="addressSearch" type="search" autocomplete="off" placeholder="Search property address or place">
+            <button class="btn btn-primary" id="searchBtn" type="button">Search</button>
+          </div>
+          <div class="search-results hidden" id="searchResults"></div>
+        </div>
+
+        <div class="map-stats">
+          <small>Mapped fence</small>
+          <div class="map-stat-value" id="mapLengthStat">0 ft</div>
+          <div class="map-stat-mini">
+            <span><strong id="mapNodeStat">0</strong> nodes</span>
+            <span><strong id="mapSegmentStat">0</strong> segments</span>
+          </div>
+        </div>
+
+        <div class="map-toolbar hide-print" aria-label="Map controls">
+          <button class="btn btn-primary" id="drawFenceBtn" type="button">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 18l4-9 5 5 5-9M5 18h.01M9 9h.01M14 14h.01M19 5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            Draw Fence
+          </button>
+          <button class="btn" id="editFenceBtn" type="button">Edit Nodes</button>
+          <button class="btn" id="clearMapBtn" type="button">Clear Map</button>
+          <button class="btn" id="fitFenceBtn" type="button">Fit Fence</button>
+          <button class="btn" id="unitToggleBtn" type="button">Feet</button>
+        </div>
+      </section>
+
+      <aside class="panel-pane">
+        <div class="panel-inner">
+          <div class="hero-row">
+            <div>
+              <div class="eyebrow">Infrastructure</div>
+              <h1 class="panel-title">Fence Cost Estimator</h1>
+              <p class="panel-copy">Map a proposed fence and calculate the materials, labor, and estimated project cost.</p>
+            </div>
+            <span class="badge"><span class="badge-dot" aria-hidden="true"></span> Live BOM</span>
+          </div>
+
+          <section class="session-notice" aria-label="Project saving information">
+            <div>
+              <strong>Session only</strong>
+              <span>RanchAssist does not permanently store this project. Save a RanchAssist <code>.ra</code> project file to continue your work later, or export your results before leaving.</span>
+            </div>
+          </section>
+
+          <div class="section-card project-card">
+            <div class="field-grid">
+              <div class="field">
+                <label for="projectName">Project name <span class="field-tag">Optional</span></label>
+                <input id="projectName" value="New Fence Project" maxlength="160" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="projectAddress">Property / address <span class="field-tag">Optional</span></label>
+                <input id="projectAddress" maxlength="250" placeholder="Filled from map search" autocomplete="street-address">
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-card"><label>Mapped length</label><strong id="summaryMapped">0 ft</strong><span>Map geometry</span></div>
+            <div class="summary-card"><label>Net fence</label><strong id="summaryNet">0 ft</strong><span>After gate openings</span></div>
+            <div class="summary-card summary-primary"><label>Estimated total</label><strong id="summaryTotal">$0.00</strong><span id="summaryPerFoot">$0.00 / ft</span></div>
+          </div>
+
+          <nav class="stepper hide-print" aria-label="Estimator steps">
+            <button class="step-tab active" data-step="1" type="button">1 · Wire</button>
+            <button class="step-tab" data-step="2" type="button">2 · Posts</button>
+            <button class="step-tab" data-step="3" type="button">3 · Braces</button>
+            <button class="step-tab" data-step="4" type="button">4 · Gates</button>
+            <button class="step-tab" data-step="5" type="button">5 · Electric</button>
+            <button class="step-tab" data-step="6" type="button">6 · Costs</button>
+          </nav>
+
+
+          <section class="step-panel" data-panel="1">
+            <div class="section-card">
+              <div class="section-head">
+                <div><h2 class="section-title">Wire selection</h2><div class="section-sub">Wire footage is based on net mapped fence length × number of strands + waste.</div></div>
+                <span class="badge" id="wireNeededBadge">0 ft</span>
+              </div>
+              <div class="choice-grid" id="wireChoices">
+                <button type="button" class="choice-card selected" data-wire="highTensile"><strong>High-Tensile</strong><span>Long runs, livestock, electric-ready</span></button>
+                <button type="button" class="choice-card" data-wire="barbed"><strong>Barbed Wire</strong><span>Traditional livestock perimeter</span></button>
+                <button type="button" class="choice-card" data-wire="smooth"><strong>Smooth Wire</strong><span>Low-profile multi-strand fencing</span></button>
+                <button type="button" class="choice-card" data-wire="field"><strong>Field Fence</strong><span>Woven livestock / exclusion fence</span></button>
+                <button type="button" class="choice-card" data-wire="electric"><strong>Electric Wire</strong><span>Dedicated electrified strand fence</span></button>
+              </div>
+              <div class="field-grid" style="margin-top:14px">
+                <div class="field">
+                  <label for="wireLines">Horizontal lines / strands</label>
+                  <input id="wireLines" type="number" min="1" max="12" step="1" value="5">
+                </div>
+                <div class="field">
+                  <label for="wireWaste">Waste buffer (%) <span class="field-tag">Assumption</span></label>
+                  <input id="wireWaste" type="number" min="0" max="50" step="1" value="10">
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="step-panel hidden" data-panel="2">
+            <div class="section-card">
+              <div class="section-head">
+                <div><h2 class="section-title">Posts &amp; spacing</h2><div class="section-sub">Line posts fill the mapped run between corner, terminal, and gate assemblies.</div></div>
+                <span class="badge" id="linePostBadge">0 line posts</span>
+              </div>
+              <div class="choice-grid" id="postChoices">
+                <button type="button" class="choice-card" data-post="wood"><strong>Wood</strong><span>All wood line posts</span></button>
+                <button type="button" class="choice-card" data-post="steelPipe"><strong>Steel Pipe</strong><span>Heavy-duty steel line posts</span></button>
+                <button type="button" class="choice-card selected" data-post="tpost"><strong>T-Post</strong><span>Fast, economical line post system</span></button>
+                <button type="button" class="choice-card" data-post="combination"><strong>Combination</strong><span>Split line posts between two materials</span></button>
+              </div>
+              <div class="field-grid" style="margin-top:14px">
+                <div class="field">
+                  <label for="postSpacing">Post spacing (ft) <span class="field-tag">Assumption</span></label>
+                  <input id="postSpacing" type="number" min="4" max="50" step="1" value="12">
+                </div>
+                <div class="field">
+                  <label for="postReserve">Post reserve (%)</label>
+                  <input id="postReserve" type="number" min="0" max="30" step="1" value="5">
+                </div>
+              </div>
+              <div class="field-grid hidden" id="combinationFields" style="margin-top:11px">
+                <div class="field">
+                  <label for="comboPrimary">Primary post</label>
+                  <select id="comboPrimary"><option value="tpost">T-Post</option><option value="wood">Wood</option><option value="steelPipe">Steel Pipe</option></select>
+                </div>
+                <div class="field">
+                  <label for="comboSecondary">Secondary post</label>
+                  <select id="comboSecondary"><option value="wood">Wood</option><option value="tpost">T-Post</option><option value="steelPipe">Steel Pipe</option></select>
+                </div>
+                <div class="field span-2">
+                  <label for="comboPrimaryPct">Primary ratio (%)</label>
+                  <input id="comboPrimaryPct" type="range" min="10" max="90" step="5" value="75">
+                  <div class="help"><span id="comboRatioText">75% T-Post / 25% Wood</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="step-panel hidden" data-panel="3">
+            <div class="section-card">
+              <div class="section-head">
+                <div><h2 class="section-title">Corner &amp; brace assemblies</h2><div class="section-sub">Map nodes are treated as fence corner/terminal points. Gate openings add two gate terminals each.</div></div>
+                <span class="badge" id="cornerBadge">0 mapped nodes</span>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="terminalPostType">Terminal post material</label>
+                  <select id="terminalPostType"><option value="wood">Wood</option><option value="steelPipe">Steel Pipe</option></select>
+                </div>
+                <div class="field">
+                  <label for="braceMode">Brace method</label>
+                  <select id="braceMode"><option value="hbrace">H-Brace Assembly</option><option value="diagonal">Diagonal Brace</option><option value="none">No Braces</option></select>
+                </div>
+                <div class="field">
+                  <label for="braceFactor">Brace assemblies per terminal <span class="field-tag">Assumption</span></label>
+                  <input id="braceFactor" type="number" min="0" max="2" step="0.25" value="1">
+                  <div class="help">1.0 = one assembly per mapped/gate terminal.</div>
+                </div>
+                <div class="field">
+                  <label for="twitchWirePerBrace">Twitch wire per H-brace (ft)</label>
+                  <input id="twitchWirePerBrace" type="number" min="0" max="100" step="1" value="20">
+                </div>
+              </div>
+              <div class="notice" style="margin-top:12px">H-brace BOM logic includes one brace post, one horizontal rail, two brace pins, and high-tensile twitch wire per assembly, in addition to the mapped/gate terminal post.</div>
+            </div>
+          </section>
+
+          <section class="step-panel hidden" data-panel="4">
+            <div class="section-card">
+              <div class="section-head">
+                <div><h2 class="section-title">Gates &amp; access</h2><div class="section-sub">Gate widths are deducted from fence wire footage and add terminal posts on both sides.</div></div>
+                <button class="btn" id="addGateBtn" type="button">+ Add Gate</button>
+              </div>
+              <div class="gate-list" id="gateList"><div class="notice" style="margin-top:0;text-align:center">No gates added. Add a gate to deduct its opening from wire footage.</div></div>
+              <div class="notice" style="margin-top:12px"><strong id="gateOpeningText">0 ft</strong> of gate openings are currently deducted from the mapped fence run.</div>
+            </div>
+          </section>
+
+          <section class="step-panel hidden" data-panel="5">
+            <div class="section-card">
+              <div class="toggle-row">
+                <div><h2 class="section-title">Make it an electric fence?</h2><div class="section-sub">Adds energizer, grounding, lightning protection, and insulators to the BOM.</div></div>
+                <label class="switch"><input id="electricToggle" type="checkbox"><span class="slider"></span></label>
+              </div>
+              <div id="electricFields" class="hidden" style="margin-top:15px">
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="energizerType">Energizer power</label>
+                    <select id="energizerType"><option value="solar">Solar</option><option value="ac">AC Wall Plug</option><option value="battery">Battery-Powered</option></select>
+                  </div>
+                  <div class="field">
+                    <label for="energizerSafetyFactor">Capacity safety factor <span class="field-tag">Assumption</span></label>
+                    <select id="energizerSafetyFactor"><option value="1.5">1.5× calculated miles</option><option value="2" selected="">2× calculated miles</option><option value="3">3× calculated miles</option></select>
+                  </div>
+                  <div class="field">
+                    <label for="groundRods">Ground rods</label>
+                    <input id="groundRods" type="number" min="1" max="20" step="1" value="3">
+                  </div>
+                  <div class="field">
+                    <label for="lightningDiverters">Lightning diverters</label>
+                    <input id="lightningDiverters" type="number" min="0" max="10" step="1" value="1">
+                  </div>
+                </div>
+                <div class="notice success" style="margin-top:12px">Recommended energizer rating: <strong id="energizerRating">0.1 miles minimum</strong>.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="step-panel hidden" data-panel="6">
+            <div class="section-card">
+              <div class="section-head">
+                <div><h2 class="section-title">Cost assumptions</h2><div class="section-sub">Edit pricing to match your supplier, crew, and market. Included defaults are example planning assumptions, not live supplier prices.</div></div>
+                <button class="btn" id="resetPricesBtn" type="button">Reset defaults</button>
+              </div>
+              <div class="field-grid three">
+                <div class="field"><label for="laborPerFt">Labor / ft <span class="field-tag">Assumption</span></label><input id="laborPerFt" type="number" min="0" step="0.01" value="2.75"></div>
+                <div class="field"><label for="taxRate">Sales tax (%) <span class="field-tag">Assumption</span></label><input id="taxRate" type="number" min="0" max="30" step="0.01" value="0"></div>
+                <div class="field"><label for="contingencyRate">Overhead / contingency (%) <span class="field-tag">Assumption</span></label><input id="contingencyRate" type="number" min="0" max="100" step="0.5" value="8"></div>
+              </div>
+              <details style="margin-top:14px">
+                <summary style="font-size:12px;font-weight:850;cursor:pointer">Material unit-price library</summary>
+                <div class="price-drawer" id="priceDrawer" style="margin-top:10px">
+      <div class="price-row">
+        <label for="price_wireHighTensile">High-tensile wire / ft</label>
+        <input id="price_wireHighTensile" data-price-key="wireHighTensile" type="number" inputmode="decimal" min="0" step="0.01" value="0.14">
+      </div>
+      <div class="price-row">
+        <label for="price_wireBarbed">Barbed wire / ft</label>
+        <input id="price_wireBarbed" data-price-key="wireBarbed" type="number" inputmode="decimal" min="0" step="0.01" value="0.18">
+      </div>
+      <div class="price-row">
+        <label for="price_wireSmooth">Smooth wire / ft</label>
+        <input id="price_wireSmooth" data-price-key="wireSmooth" type="number" inputmode="decimal" min="0" step="0.01" value="0.1">
+      </div>
+      <div class="price-row">
+        <label for="price_wireField">Field fence / linear ft</label>
+        <input id="price_wireField" data-price-key="wireField" type="number" inputmode="decimal" min="0" step="0.01" value="1.25">
+      </div>
+      <div class="price-row">
+        <label for="price_wireElectric">Electric wire / ft</label>
+        <input id="price_wireElectric" data-price-key="wireElectric" type="number" inputmode="decimal" min="0" step="0.01" value="0.13">
+      </div>
+      <div class="price-row">
+        <label for="price_postWood">Wood line post / ea</label>
+        <input id="price_postWood" data-price-key="postWood" type="number" inputmode="decimal" min="0" step="0.01" value="13">
+      </div>
+      <div class="price-row">
+        <label for="price_postSteelPipe">Steel pipe line post / ea</label>
+        <input id="price_postSteelPipe" data-price-key="postSteelPipe" type="number" inputmode="decimal" min="0" step="0.01" value="28">
+      </div>
+      <div class="price-row">
+        <label for="price_postTpost">T-post / ea</label>
+        <input id="price_postTpost" data-price-key="postTpost" type="number" inputmode="decimal" min="0" step="0.01" value="6.25">
+      </div>
+      <div class="price-row">
+        <label for="price_terminalWood">Wood terminal / brace post / ea</label>
+        <input id="price_terminalWood" data-price-key="terminalWood" type="number" inputmode="decimal" min="0" step="0.01" value="24">
+      </div>
+      <div class="price-row">
+        <label for="price_terminalSteelPipe">Steel terminal / brace post / ea</label>
+        <input id="price_terminalSteelPipe" data-price-key="terminalSteelPipe" type="number" inputmode="decimal" min="0" step="0.01" value="45">
+      </div>
+      <div class="price-row">
+        <label for="price_hBraceRail">H-brace horizontal rail / ea</label>
+        <input id="price_hBraceRail" data-price-key="hBraceRail" type="number" inputmode="decimal" min="0" step="0.01" value="14">
+      </div>
+      <div class="price-row">
+        <label for="price_diagonalBrace">Diagonal brace member / ea</label>
+        <input id="price_diagonalBrace" data-price-key="diagonalBrace" type="number" inputmode="decimal" min="0" step="0.01" value="18">
+      </div>
+      <div class="price-row">
+        <label for="price_bracePin">Brace pin / ea</label>
+        <input id="price_bracePin" data-price-key="bracePin" type="number" inputmode="decimal" min="0" step="0.01" value="1.5">
+      </div>
+      <div class="price-row">
+        <label for="price_twitchWire">Twitch wire / ft</label>
+        <input id="price_twitchWire" data-price-key="twitchWire" type="number" inputmode="decimal" min="0" step="0.01" value="0.14">
+      </div>
+      <div class="price-row">
+        <label for="price_tpostClip">T-post clip / ea</label>
+        <input id="price_tpostClip" data-price-key="tpostClip" type="number" inputmode="decimal" min="0" step="0.01" value="0.15">
+      </div>
+      <div class="price-row">
+        <label for="price_woodStaple">Fence staple / ea</label>
+        <input id="price_woodStaple" data-price-key="woodStaple" type="number" inputmode="decimal" min="0" step="0.01" value="0.08">
+      </div>
+      <div class="price-row">
+        <label for="price_energizerSolar">Solar energizer / ea</label>
+        <input id="price_energizerSolar" data-price-key="energizerSolar" type="number" inputmode="decimal" min="0" step="0.01" value="420">
+      </div>
+      <div class="price-row">
+        <label for="price_energizerAc">AC energizer / ea</label>
+        <input id="price_energizerAc" data-price-key="energizerAc" type="number" inputmode="decimal" min="0" step="0.01" value="250">
+      </div>
+      <div class="price-row">
+        <label for="price_energizerBattery">Battery energizer / ea</label>
+        <input id="price_energizerBattery" data-price-key="energizerBattery" type="number" inputmode="decimal" min="0" step="0.01" value="300">
+      </div>
+      <div class="price-row">
+        <label for="price_groundRod">Ground rod / ea</label>
+        <input id="price_groundRod" data-price-key="groundRod" type="number" inputmode="decimal" min="0" step="0.01" value="22">
+      </div>
+      <div class="price-row">
+        <label for="price_lightningDiverter">Lightning diverter / ea</label>
+        <input id="price_lightningDiverter" data-price-key="lightningDiverter" type="number" inputmode="decimal" min="0" step="0.01" value="35">
+      </div>
+      <div class="price-row">
+        <label for="price_insulator">Fence insulator / ea</label>
+        <input id="price_insulator" data-price-key="insulator" type="number" inputmode="decimal" min="0" step="0.01" value="0.65">
+      </div></div>
+              </details>
+            </div>
+          </section>
+
+          <section class="section-card" id="bomSection">
+            <div class="section-head">
+              <div><h2 class="section-title">Bill of materials</h2><div class="section-sub">Automatically generated from the mapped run and configuration above.</div></div>
+              <button class="btn hide-print" id="exportCsvBtn" type="button">Export CSV</button>
+            </div>
+            <div class="bom-wrap">
+              <table class="bom">
+                <thead><tr><th>Category</th><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th></tr></thead>
+                <tbody id="bomBody"></tbody>
+              </table>
+            </div>
+            <div class="totals">
+              <div class="total-line"><span>Materials</span><strong id="materialsTotal">$0.00</strong></div>
+              <div class="total-line"><span>Labor</span><strong id="laborTotal">$0.00</strong></div>
+              <div class="total-line"><span>Overhead / contingency</span><strong id="contingencyTotal">$0.00</strong></div>
+              <div class="total-line"><span>Estimated tax</span><strong id="taxTotal">$0.00</strong></div>
+              <div class="grand-total"><div><label>Estimated project total</label><div class="help">Planning estimate before site verification.</div></div><strong id="grandTotal">$0.00</strong></div>
+            </div>
+          </section>
+
+          <section class="section-card">
+            <div class="field">
+              <label for="projectNotes">Project notes</label>
+              <textarea id="projectNotes" maxlength="3000" placeholder="Terrain, livestock, installation notes, supplier assumptions, etc."></textarea>
+            </div>
+          </section>
+
+          <section class="section-card calculation-card">
+            <details id="calculationDetails">
+              <summary>View Calculation Details</summary>
+              <div class="calculation-details">
+                <div class="formula-row"><span>Net fence length</span><code id="calcNetFormula">Mapped length − gate openings</code></div>
+                <div class="formula-row"><span>Wire required</span><code id="calcWireFormula">Net length × strands × waste factor</code></div>
+                <div class="formula-row"><span>Line posts</span><code id="calcPostFormula">Spacing positions − terminal posts + reserve</code></div>
+                <div class="formula-row"><span>Labor</span><code id="calcLaborFormula">Mapped length × labor / ft</code></div>
+                <div class="formula-row"><span>Estimated total</span><code id="calcTotalFormula">Materials + labor + contingency + tax</code></div>
+              </div>
+            </details>
+          </section>
+
+          <div class="footer-actions hide-print">
+            <button class="btn" id="printBtn" type="button">Print</button>
+            <button class="btn" id="copySummaryBtn" type="button">Copy Summary</button>
+            <button class="btn" id="saveBottomBtn" type="button">Save Project</button>
+            <button class="btn btn-primary" id="shareBottomBtn" type="button">Email Estimate</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="shareModal" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">Share</div><h3 id="shareTitle">Email estimate</h3></div>
+        <button class="btn btn-icon" id="closeShareBtn" type="button" aria-label="Close email dialog">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-grid">
+          <div class="field span-2"><label for="shareTo">Recipient email(s)</label><input id="shareTo" type="text" inputmode="email" autocomplete="email" placeholder="owner@example.com"></div>
+          <div class="field span-2"><label for="shareSubject">Subject</label><input id="shareSubject" type="text" maxlength="180"></div>
+          <div class="field span-2"><label for="shareMessage">Message <span class="field-tag">Optional</span></label><textarea id="shareMessage" maxlength="3000" placeholder="Optional message for the recipient"></textarea></div>
+        </div>
+        <div class="notice" id="shareNotice">The email includes project specifications, bill of materials, mapped-path statistics, and the estimated total.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelShareBtn" type="button">Cancel</button>
+        <button class="btn btn-primary" id="sendShareBtn" type="button">Send Estimate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="clearSessionTitle">
+    <div class="modal modal-small">
+      <div class="modal-head"><div><div class="eyebrow">Clear Session</div><h3 id="clearSessionTitle">Clear this session?</h3></div></div>
+      <div class="modal-body">
+        <p class="panel-copy">This removes the current unsaved RanchAssist project from this browser session. Saved <code>.ra</code> files on your device will not be affected.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelNewBtn" type="button">Cancel</button>
+        <button class="btn btn-danger" id="confirmNewBtn" type="button">Clear Session</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="duplicateModal" role="dialog" aria-modal="true" aria-labelledby="duplicateTitle">
+    <div class="modal modal-small">
+      <div class="modal-head">
+        <div><div class="eyebrow">Project</div><h3 id="duplicateTitle">Duplicate Project</h3></div>
+        <button class="btn btn-icon" id="closeDuplicateBtn" type="button" aria-label="Close duplicate project dialog">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="duplicateProjectName">New project name</label>
+          <input id="duplicateProjectName" maxlength="160" autocomplete="off">
+        </div>
+        <div class="notice">A duplicate starts a new project lineage with a new UUID while keeping the current editable state.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelDuplicateBtn" type="button">Cancel</button>
+        <button class="btn btn-primary" id="confirmDuplicateBtn" type="button">Duplicate &amp; Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-draw@1.5.1/dist/mapbox-gl-draw.js"></script>
+  <!-- ============================================================
+     CALCULATION ENGINE
+     Fence calculations and material logic.
+============================================================ -->
+<script>
+(() => {
+  'use strict';
+
+  const FEET_PER_METER = 3.280839895;
+  const FEET_PER_MILE = 5280;
+
+  const DEFAULT_PRICES = Object.freeze({
+    wireHighTensile: 0.14,
+    wireBarbed: 0.18,
+    wireSmooth: 0.10,
+    wireField: 1.25,
+    wireElectric: 0.13,
+    postWood: 13.00,
+    postSteelPipe: 28.00,
+    postTpost: 6.25,
+    terminalWood: 24.00,
+    terminalSteelPipe: 45.00,
+    hBraceRail: 14.00,
+    diagonalBrace: 18.00,
+    bracePin: 1.50,
+    twitchWire: 0.14,
+    tpostClip: 0.15,
+    woodStaple: 0.08,
+    energizerSolar: 420.00,
+    energizerAc: 250.00,
+    energizerBattery: 300.00,
+    groundRod: 22.00,
+    lightningDiverter: 35.00,
+    insulator: 0.65
+  });
+
+  const PRICE_META = Object.freeze([
+    ['wireHighTensile', 'High-tensile wire / ft'],
+    ['wireBarbed', 'Barbed wire / ft'],
+    ['wireSmooth', 'Smooth wire / ft'],
+    ['wireField', 'Field fence / linear ft'],
+    ['wireElectric', 'Electric wire / ft'],
+    ['postWood', 'Wood line post / ea'],
+    ['postSteelPipe', 'Steel pipe line post / ea'],
+    ['postTpost', 'T-post / ea'],
+    ['terminalWood', 'Wood terminal / brace post / ea'],
+    ['terminalSteelPipe', 'Steel terminal / brace post / ea'],
+    ['hBraceRail', 'H-brace horizontal rail / ea'],
+    ['diagonalBrace', 'Diagonal brace member / ea'],
+    ['bracePin', 'Brace pin / ea'],
+    ['twitchWire', 'Twitch wire / ft'],
+    ['tpostClip', 'T-post clip / ea'],
+    ['woodStaple', 'Fence staple / ea'],
+    ['energizerSolar', 'Solar energizer / ea'],
+    ['energizerAc', 'AC energizer / ea'],
+    ['energizerBattery', 'Battery energizer / ea'],
+    ['groundRod', 'Ground rod / ea'],
+    ['lightningDiverter', 'Lightning diverter / ea'],
+    ['insulator', 'Fence insulator / ea']
+  ]);
+
+  const WIRE_META = Object.freeze({
+    highTensile: { label: 'High-Tensile Wire', priceKey: 'wireHighTensile', suggestedLines: 5, suggestedSpacing: 20 },
+    barbed: { label: 'Barbed Wire', priceKey: 'wireBarbed', suggestedLines: 5, suggestedSpacing: 12 },
+    smooth: { label: 'Smooth Wire', priceKey: 'wireSmooth', suggestedLines: 5, suggestedSpacing: 15 },
+    field: { label: 'Field Fence', priceKey: 'wireField', suggestedLines: 1, suggestedSpacing: 10 },
+    electric: { label: 'Electric Wire', priceKey: 'wireElectric', suggestedLines: 3, suggestedSpacing: 20 }
+  });
+
+  const POST_META = Object.freeze({
+    wood: { label: 'Wood Line Post', priceKey: 'postWood' },
+    steelPipe: { label: 'Steel Pipe Line Post', priceKey: 'postSteelPipe' },
+    tpost: { label: 'T-Post', priceKey: 'postTpost' }
+  });
+
+  const GATE_DEFAULTS = Object.freeze({
+    tube: { label: 'Tube Gate', width: 12, unitCost: 220 },
+    wire: { label: 'Wire Gate', width: 12, unitCost: 85 },
+    walk: { label: 'Walk Gate', width: 4, unitCost: 145 },
+    custom: { label: 'Custom Gate', width: 10, unitCost: 200 }
+  });
+
+  const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const int = (value, fallback = 0) => Math.round(num(value, fallback));
+  const round = (value, places = 2) => Math.round(num(value) * Math.pow(10, places)) / Math.pow(10, places);
+
+  function calculateFenceEstimate(input) {
+    const source = input || {};
+    const mapStats = source.mapStats || {};
+    const mapped = Math.max(0, num(mapStats.lengthFeet));
+
+    const gates = Array.isArray(source.gates) ? source.gates : [];
+    const gateOpeningFeet = gates.reduce((sum, gate) =>
+      sum + Math.max(0, num(gate.width)) * Math.max(1, int(gate.quantity, 1)), 0);
+    const gateCount = gates.reduce((sum, gate) => sum + Math.max(1, int(gate.quantity, 1)), 0);
+    const netFenceFeet = Math.max(0, mapped - gateOpeningFeet);
+
+    const mappedNodes = Math.max(0, int(mapStats.nodeCount));
+    const terminalCount = mappedNodes + gateCount * 2;
+    const wireType = WIRE_META[source.wireType] ? source.wireType : 'highTensile';
+    const wireMeta = WIRE_META[wireType];
+    const wireLines = Math.max(1, int(source.wireLines, wireMeta.suggestedLines));
+    const wireWaste = Math.max(0, num(source.wireWaste, 10));
+    const wireFeet = netFenceFeet * wireLines * (1 + wireWaste / 100);
+
+    const postSpacing = Math.max(1, num(source.postSpacing, wireMeta.suggestedSpacing));
+    const theoreticalPositions = mapped > 0 ? Math.ceil(netFenceFeet / postSpacing) + 1 : 0;
+    const baseLinePosts = Math.max(0, theoreticalPositions - terminalCount);
+    const postReserve = Math.max(0, num(source.postReserve, 5));
+    const linePosts = Math.ceil(baseLinePosts * (1 + postReserve / 100));
+
+    const prices = { ...DEFAULT_PRICES, ...(source.prices || {}) };
+    const bom = [];
+    const push = (row) => {
+      if (!row || num(row.qty) <= 0) return;
+      const unitCost = row.unitCost != null ? Math.max(0, num(row.unitCost)) : Math.max(0, num(prices[row.priceKey]));
+      bom.push({
+        ...row,
+        qty: round(row.qty, 2),
+        unitCost: round(unitCost, 4),
+        total: round(row.qty * unitCost, 2)
+      });
+    };
+
+    if (wireFeet > 0) {
+      push({ category: 'Wire', item: wireMeta.label, qty: wireFeet, unit: 'ft', priceKey: wireMeta.priceKey });
+    }
+
+    const postType = ['wood', 'steelPipe', 'tpost', 'combination'].includes(source.postType) ? source.postType : 'tpost';
+    const comboPrimary = POST_META[source.comboPrimary] ? source.comboPrimary : 'tpost';
+    let comboSecondary = POST_META[source.comboSecondary] ? source.comboSecondary : 'wood';
+    if (comboSecondary === comboPrimary) comboSecondary = comboPrimary === 'tpost' ? 'wood' : 'tpost';
+    const comboPrimaryPct = Math.min(90, Math.max(10, num(source.comboPrimaryPct, 75)));
+
+    if (linePosts > 0) {
+      if (postType === 'combination') {
+        const primaryQty = Math.round(linePosts * (comboPrimaryPct / 100));
+        const secondaryQty = Math.max(0, linePosts - primaryQty);
+        const p = POST_META[comboPrimary];
+        const s = POST_META[comboSecondary];
+        if (primaryQty) push({ category: 'Posts', item: p.label, qty: primaryQty, unit: 'ea', priceKey: p.priceKey });
+        if (secondaryQty) push({ category: 'Posts', item: s.label, qty: secondaryQty, unit: 'ea', priceKey: s.priceKey });
+      } else {
+        const postMeta = POST_META[postType];
+        if (postMeta) push({ category: 'Posts', item: postMeta.label, qty: linePosts, unit: 'ea', priceKey: postMeta.priceKey });
+      }
+    }
+
+    const terminalPostType = source.terminalPostType === 'steelPipe' ? 'steelPipe' : 'wood';
+    const terminalPriceKey = terminalPostType === 'steelPipe' ? 'terminalSteelPipe' : 'terminalWood';
+    const terminalLabel = terminalPostType === 'steelPipe'
+      ? 'Steel Terminal / Corner Post'
+      : 'Wood Terminal / Corner Post';
+
+    if (terminalCount > 0) {
+      push({ category: 'Posts', item: terminalLabel, qty: terminalCount, unit: 'ea', priceKey: terminalPriceKey });
+    }
+
+    const braceMode = ['hbrace', 'diagonal', 'none'].includes(source.braceMode) ? source.braceMode : 'hbrace';
+    const braceFactor = Math.min(2, Math.max(0, num(source.braceFactor, 1)));
+    const twitchWirePerBrace = Math.min(100, Math.max(0, num(source.twitchWirePerBrace, 20)));
+    const braceAssemblies = braceMode === 'none' ? 0 : Math.ceil(terminalCount * braceFactor);
+
+    if (braceAssemblies > 0) {
+      push({
+        category: 'Braces',
+        item: terminalPostType === 'steelPipe' ? 'Steel Brace Post' : 'Wood Brace Post',
+        qty: braceAssemblies,
+        unit: 'ea',
+        priceKey: terminalPriceKey
+      });
+      if (braceMode === 'hbrace') {
+        push({ category: 'Braces', item: 'H-Brace Horizontal Rail', qty: braceAssemblies, unit: 'ea', priceKey: 'hBraceRail' });
+        push({ category: 'Braces', item: 'Brace Pins', qty: braceAssemblies * 2, unit: 'ea', priceKey: 'bracePin' });
+        push({ category: 'Braces', item: 'High-Tensile Twitch Wire', qty: braceAssemblies * twitchWirePerBrace, unit: 'ft', priceKey: 'twitchWire' });
+      } else if (braceMode === 'diagonal') {
+        push({ category: 'Braces', item: 'Diagonal Brace Member', qty: braceAssemblies, unit: 'ea', priceKey: 'diagonalBrace' });
+      }
+    }
+
+    gates.forEach((gate, index) => {
+      const type = GATE_DEFAULTS[gate.type] ? gate.type : 'custom';
+      const meta = GATE_DEFAULTS[type];
+      push({
+        category: 'Gates',
+        item: `${meta.label} — ${round(Math.max(1, num(gate.width, meta.width)), 1)} ft`,
+        qty: Math.max(1, int(gate.quantity, 1)),
+        unit: 'ea',
+        unitCost: Math.max(0, num(gate.unitCost, meta.unitCost)),
+        gateIndex: index
+      });
+    });
+
+    let tpost = 0;
+    let wood = 0;
+    bom.forEach(row => {
+      if (/T-Post$/i.test(row.item) || row.item === 'T-Post') tpost += row.qty;
+      if (/Wood .*Post/i.test(row.item) || row.item === 'Wood Line Post') wood += row.qty;
+    });
+
+    const electricFence = Boolean(source.electricFence);
+    if (!electricFence) {
+      const tpostClips = tpost * wireLines;
+      const staples = wood * wireLines;
+      if (tpostClips) push({ category: 'Hardware', item: 'T-Post Wire Clips', qty: tpostClips, unit: 'ea', priceKey: 'tpostClip' });
+      if (staples) push({ category: 'Hardware', item: 'Fence Staples', qty: staples, unit: 'ea', priceKey: 'woodStaple' });
+    }
+
+    let energizerMiles = 0;
+    if (electricFence && mapped > 0) {
+      const actualWireMiles = wireFeet / FEET_PER_MILE;
+      const safety = Math.min(5, Math.max(1, num(source.energizerSafetyFactor, 2)));
+      energizerMiles = Math.max(0.1, Math.ceil(actualWireMiles * safety * 2) / 2);
+      const energizerType = ['solar', 'ac', 'battery'].includes(source.energizerType) ? source.energizerType : 'solar';
+      const energizerKey = energizerType === 'ac' ? 'energizerAc' : energizerType === 'battery' ? 'energizerBattery' : 'energizerSolar';
+      const energizerLabel = energizerType === 'ac'
+        ? 'AC Fence Energizer'
+        : energizerType === 'battery'
+          ? 'Battery Fence Energizer'
+          : 'Solar Fence Energizer';
+      push({ category: 'Electric', item: `${energizerLabel} (${round(energizerMiles, 1)}+ mi rating)`, qty: 1, unit: 'ea', priceKey: energizerKey });
+      push({ category: 'Electric', item: 'Ground Rod', qty: Math.max(1, int(source.groundRods, 3)), unit: 'ea', priceKey: 'groundRod' });
+      const lightning = Math.max(0, int(source.lightningDiverters, 1));
+      if (lightning) push({ category: 'Electric', item: 'Lightning Diverter', qty: lightning, unit: 'ea', priceKey: 'lightningDiverter' });
+      const insulators = Math.ceil((linePosts + terminalCount + braceAssemblies) * wireLines * 1.05);
+      push({ category: 'Electric', item: 'Fence Insulators', qty: insulators, unit: 'ea', priceKey: 'insulator' });
+    }
+
+    const materials = bom.reduce((sum, row) => sum + row.total, 0);
+    const laborPerFt = Math.max(0, num(source.laborPerFt));
+    const taxRate = Math.min(30, Math.max(0, num(source.taxRate)));
+    const contingencyRate = Math.min(100, Math.max(0, num(source.contingencyRate)));
+    const labor = mapped * laborPerFt;
+    const contingency = (materials + labor) * (contingencyRate / 100);
+    const tax = materials * (taxRate / 100);
+    const total = materials + labor + contingency + tax;
+
+    return {
+      bom,
+      calculation: {
+        mappedFenceFeet: mapped,
+        netFenceFeet,
+        gateOpeningFeet,
+        gateCount,
+        terminalCount,
+        linePosts,
+        wireFeet,
+        energizerMiles,
+        braceAssemblies,
+        costPerFoot: mapped > 0 ? total / mapped : 0
+      },
+      totals: {
+        materials,
+        labor,
+        contingency,
+        tax,
+        total
+      }
+    };
+  }
+
+  window.RanchAssistFenceCore = Object.freeze({
+    FEET_PER_METER,
+    FEET_PER_MILE,
+    DEFAULT_PRICES,
+    PRICE_META,
+    WIRE_META,
+    POST_META,
+    GATE_DEFAULTS,
+    calculateFenceEstimate
+  });
+})();
+</script>
+  <!-- ============================================================
+     RANCHASSIST PROJECT FILE SYSTEM
+     .ra save/open/duplicate/validation/migration.
+============================================================ -->
+<script>
+(() => {
+  'use strict';
+
+  const FORMAT_VERSION = '1.0';
+  const TOOL_ID = 'fence-cost-estimator';
+  const TOOL_NAME = 'Fence Cost Estimator';
+  const TOOL_VERSION = '2.0.0';
+  const STATE_SCHEMA_VERSION = 2;
+  const MIME_TYPE = 'application/x-ranchassist-project';
+
+  const FORBIDDEN_KEY = /(token|api.?key|secret|password|authorization|cookie|credential|client.?secret|access.?key|webhook.?secret|smtp)/i;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  function createUuid() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const h = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  }
+
+  function sanitizeFilename(name) {
+    return String(name || 'Fence Cost Estimate')
+      .normalize('NFKC')
+      .replace(/[\/\\:*?"<>|\u0000-\u001F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 100)
+      .replace(/\s+/g, '_') || 'Fence_Cost_Estimate';
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function assertNoCredentialKeys(value, path = '$') {
+    if (!value || typeof value !== 'object') return true;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => assertNoCredentialKeys(item, `${path}[${index}]`));
+      return true;
+    }
+    Object.keys(value).forEach(key => {
+      if (FORBIDDEN_KEY.test(key)) throw new Error('Project contains a prohibited deployment-configuration field.');
+      assertNoCredentialKeys(value[key], `${path}.${key}`);
+    });
+    return true;
+  }
+
+  function sanitizeGeoJson(featureCollection) {
+    const fc = featureCollection && featureCollection.type === 'FeatureCollection' ? featureCollection : { type: 'FeatureCollection', features: [] };
+    const features = Array.isArray(fc.features) ? fc.features.slice(0, 100) : [];
+    return {
+      type: 'FeatureCollection',
+      features: features.map((feature, index) => {
+        if (!feature || feature.type !== 'Feature' || feature.geometry?.type !== 'LineString') {
+          throw new Error('Project map geometry contains an unsupported feature.');
+        }
+        const coords = Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates.slice(0, 2000) : [];
+        if (coords.length < 2) throw new Error('Project map geometry contains an incomplete fence line.');
+        const cleanCoords = coords.map(pair => {
+          if (!Array.isArray(pair) || pair.length < 2) throw new Error('Project map geometry contains an invalid coordinate.');
+          const lng = Number(pair[0]);
+          const lat = Number(pair[1]);
+          if (!Number.isFinite(lng) || !Number.isFinite(lat) || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+            throw new Error('Project map geometry contains an invalid coordinate.');
+          }
+          return [Math.round(lng * 1e7) / 1e7, Math.round(lat * 1e7) / 1e7];
+        });
+        return {
+          type: 'Feature',
+          id: typeof feature.id === 'string' || typeof feature.id === 'number' ? feature.id : `fence-${index + 1}`,
+          properties: {},
+          geometry: { type: 'LineString', coordinates: cleanCoords }
+        };
+      })
+    };
+  }
+
+  function sanitizeCamera(camera) {
+    const c = camera || {};
+    const center = Array.isArray(c.center) && c.center.length >= 2
+      ? [Number(c.center[0]), Number(c.center[1])]
+      : [-96.5, 32.8];
+    if (!Number.isFinite(center[0]) || !Number.isFinite(center[1]) || center[0] < -180 || center[0] > 180 || center[1] < -90 || center[1] > 90) {
+      throw new Error('Project map camera is invalid.');
+    }
+    return {
+      center,
+      zoom: finiteRange(c.zoom, 0, 24, 5),
+      bearing: finiteRange(c.bearing, -360, 360, 0),
+      pitch: finiteRange(c.pitch, 0, 85, 0)
+    };
+  }
+
+  function finiteRange(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function validateTimestamp(value) {
+    return typeof value === 'string' && Number.isFinite(Date.parse(value));
+  }
+
+  function compareVersions(a, b) {
+    const pa = String(a || '0').split('.').map(v => parseInt(v, 10) || 0);
+    const pb = String(b || '0').split('.').map(v => parseInt(v, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const av = pa[i] || 0, bv = pb[i] || 0;
+      if (av > bv) return 1;
+      if (av < bv) return -1;
+    }
+    return 0;
+  }
+
+  function migrateProject(raw) {
+    const project = clone(raw);
+    let migrated = false;
+
+    if (project.formatVersion !== FORMAT_VERSION) {
+      if (compareVersions(project.formatVersion, FORMAT_VERSION) > 0) {
+        const err = new Error('This project was created with a newer version of RanchAssist and cannot be opened safely here.');
+        err.code = 'NEWER_FORMAT';
+        throw err;
+      }
+      const err = new Error('This RanchAssist project format is not supported by this version of the tool.');
+      err.code = 'UNSUPPORTED_FORMAT';
+      throw err;
+    }
+
+    if (!project.state || typeof project.state !== 'object') {
+      const err = new Error('This project is missing information required to restore the project.');
+      err.code = 'INCOMPLETE';
+      throw err;
+    }
+
+    let schemaVersion = Number(project.state.schemaVersion || 1);
+
+    // Migration scaffold: schema v1 stored project fields directly on state.
+    if (schemaVersion === 1) {
+      const legacyGeoJson = clone(
+        project.state.mapGeoJson || project.spatial?.geojson || { type: 'FeatureCollection', features: [] }
+      );
+      project.state = {
+        schemaVersion: 2,
+        projectInfo: {
+          address: String(project.state.projectAddress || project.state.address || ''),
+          notes: String(project.state.projectNotes || project.state.notes || '')
+        },
+        ui: {
+          activeStep: Number(project.state.activeStep || 1),
+          unitSystem: project.state.unitSystem === 'meters' ? 'meters' : 'feet'
+        },
+        estimator: clone(project.state.estimator || project.state),
+        mapGeoJson: legacyGeoJson
+      };
+      project.spatial = project.spatial || {};
+      if (!project.spatial.geojson) project.spatial.geojson = legacyGeoJson;
+      migrated = true;
+      schemaVersion = 2;
+    }
+
+    if (schemaVersion > STATE_SCHEMA_VERSION) {
+      const err = new Error('This project was created with a newer version of the Fence Cost Estimator and cannot be opened safely here.');
+      err.code = 'NEWER_TOOL_SCHEMA';
+      throw err;
+    }
+
+    if (schemaVersion < STATE_SCHEMA_VERSION) {
+      const err = new Error('This project uses an older format that this version cannot migrate safely.');
+      err.code = 'UNSUPPORTED_TOOL_SCHEMA';
+      throw err;
+    }
+
+    return { project, migrated };
+  }
+
+  function validateProject(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      const err = new Error('Choose a .ra file exported from RanchAssist.');
+      err.code = 'NOT_RA';
+      throw err;
+    }
+    if (raw.raFile !== true) {
+      const err = new Error('Choose a .ra file exported from RanchAssist.');
+      err.code = 'NOT_RA';
+      throw err;
+    }
+    if (typeof raw.formatVersion !== 'string') {
+      const err = new Error('This project is missing its RanchAssist format version.');
+      err.code = 'INCOMPLETE';
+      throw err;
+    }
+    if (!raw.tool || typeof raw.tool !== 'object' || !raw.tool.id || !raw.tool.version) {
+      const err = new Error('This project is missing its originating RanchAssist tool information.');
+      err.code = 'INCOMPLETE';
+      throw err;
+    }
+    if (raw.tool.id !== TOOL_ID) {
+      const err = new Error(`This project belongs to ${String(raw.tool.name || raw.tool.id)}.`);
+      err.code = 'WRONG_TOOL';
+      err.tool = raw.tool;
+      throw err;
+    }
+    if (!raw.project || typeof raw.project !== 'object' || !UUID_RE.test(String(raw.project.id || ''))) {
+      const err = new Error('This project is missing a valid project identifier.');
+      err.code = 'INCOMPLETE';
+      throw err;
+    }
+    if (!validateTimestamp(raw.project.createdAt) || !validateTimestamp(raw.project.updatedAt)) {
+      const err = new Error('This project is missing valid save timestamps.');
+      err.code = 'INCOMPLETE';
+      throw err;
+    }
+    if (!raw.metadata || raw.metadata.schema !== 'ra-project') {
+      const err = new Error('This file is not a valid RanchAssist project file.');
+      err.code = 'NOT_RA';
+      throw err;
+    }
+
+    assertNoCredentialKeys(raw);
+    const migratedResult = migrateProject(raw);
+    const project = migratedResult.project;
+    validateState(project.state);
+
+    const spatial = project.spatial || {};
+    if (spatial.geojson) sanitizeGeoJson(spatial.geojson);
+    if (spatial.camera) sanitizeCamera(spatial.camera);
+
+    return { project, migrated: migratedResult.migrated };
+  }
+
+  function validateState(state) {
+    if (!state || typeof state !== 'object') throw new Error('Project state is missing.');
+    if (Number(state.schemaVersion) !== STATE_SCHEMA_VERSION) throw new Error('Project state version is not supported.');
+    if (!state.projectInfo || typeof state.projectInfo !== 'object') throw new Error('Project information is missing.');
+    if (!state.ui || typeof state.ui !== 'object') throw new Error('Project interface state is missing.');
+    if (!state.estimator || typeof state.estimator !== 'object') throw new Error('Fence estimator state is missing.');
+
+    const e = state.estimator;
+    const numericFields = [
+      'wireLines','wireWaste','postSpacing','postReserve','comboPrimaryPct','braceFactor',
+      'twitchWirePerBrace','energizerSafetyFactor','groundRods','lightningDiverters',
+      'laborPerFt','taxRate','contingencyRate'
+    ];
+    numericFields.forEach(key => {
+      if (e[key] !== undefined && !Number.isFinite(Number(e[key]))) throw new Error(`Project field ${key} is invalid.`);
+    });
+
+    if (e.gates !== undefined && !Array.isArray(e.gates)) throw new Error('Project gates are invalid.');
+    if (Array.isArray(e.gates) && e.gates.length > 100) throw new Error('Project contains too many gate entries.');
+    if (e.prices !== undefined && (typeof e.prices !== 'object' || Array.isArray(e.prices))) throw new Error('Project pricing is invalid.');
+
+    if (state.mapGeoJson) sanitizeGeoJson(state.mapGeoJson);
+    return true;
+  }
+
+  function buildProject({ projectMeta, projectName, preferences, state, spatial }) {
+    const now = new Date().toISOString();
+    const createdAt = validateTimestamp(projectMeta?.createdAt) ? projectMeta.createdAt : now;
+    const id = UUID_RE.test(String(projectMeta?.id || '')) ? projectMeta.id : createUuid();
+
+    const payload = {
+      raFile: true,
+      formatVersion: FORMAT_VERSION,
+      tool: {
+        id: TOOL_ID,
+        name: TOOL_NAME,
+        version: TOOL_VERSION
+      },
+      project: {
+        id,
+        name: String(projectName || 'Fence Cost Estimate').trim().slice(0, 160) || 'Fence Cost Estimate',
+        createdAt,
+        updatedAt: now
+      },
+      preferences: {
+        units: preferences?.units === 'meters' ? 'meters' : 'imperial'
+      },
+      state: clone(state),
+      spatial: spatial ? {
+        geojson: sanitizeGeoJson(spatial.geojson || { type: 'FeatureCollection', features: [] }),
+        camera: sanitizeCamera(spatial.camera || {}),
+        selectedFeatureId: spatial.selectedFeatureId == null ? null : String(spatial.selectedFeatureId).slice(0, 120)
+      } : null,
+      metadata: {
+        generator: 'RanchAssist',
+        schema: 'ra-project'
+      }
+    };
+
+    assertNoCredentialKeys(payload);
+    validateState(payload.state);
+    return payload;
+  }
+
+  window.RanchAssistProjectFiles = Object.freeze({
+    FORMAT_VERSION,
+    TOOL_ID,
+    TOOL_NAME,
+    TOOL_VERSION,
+    STATE_SCHEMA_VERSION,
+    MIME_TYPE,
+    createUuid,
+    sanitizeFilename,
+    assertNoCredentialKeys,
+    sanitizeGeoJson,
+    sanitizeCamera,
+    buildProject,
+    validateProject
+  });
+})();
+</script>
+  <!-- ============================================================
+     APPLICATION / MAPBOX / SESSION / EXPORT LOGIC
+     UI interactions, mapping, session recovery, reports and sharing.
+============================================================ -->
+<script>
+(() => {
+  'use strict';
+
+  const SESSION_KEY = 'ranchassist.fence-cost-estimator.session.v2';
+  const SESSION_VERSION = 2;
+  const MAX_PROJECT_FILE_BYTES = 5 * 1024 * 1024;
+
+  const Core = window.RanchAssistFenceCore;
+  const ProjectFiles = window.RanchAssistProjectFiles;
+  if (!Core || !ProjectFiles) {
+    throw new Error('RanchAssist application modules failed to initialize.');
+  }
+
+  const runtimeConfig = Object.freeze({
+    appName: String(window.RANCHASSIST_CONFIG?.appName || 'SmoothWireFence.com'),
+    brandName: String(window.RANCHASSIST_CONFIG?.brandName || 'RanchAssist'),
+    toolName: String(window.RANCHASSIST_CONFIG?.toolName || 'Fence Cost Estimator'),
+    mapboxAccessToken: String(window.RANCHASSIST_CONFIG?.mapboxAccessToken || ''),
+    defaultMapStyle: String(window.RANCHASSIST_CONFIG?.defaultMapStyle || 'mapbox://styles/mapbox/standard-satellite'),
+    supportEmail: String(window.RANCHASSIST_CONFIG?.supportEmail || ''),
+    featureFlags: Object.freeze({
+      emailShare: window.RANCHASSIST_CONFIG?.featureFlags?.emailShare !== false
+    }),
+    services: Object.freeze({
+      mapConfigured: Boolean(window.RANCHASSIST_CONFIG?.services?.map?.configured) || String(window.RANCHASSIST_CONFIG?.mapboxAccessToken || '').startsWith('pk.'),
+      emailConfigured: window.RANCHASSIST_CONFIG?.services?.emailShare?.configured !== false
+    })
+  });
+
+  const DEFAULT_STATE = Object.freeze({
+    activeStep: 1,
+    unitSystem: 'feet',
+    wireType: 'highTensile',
+    wireLines: 5,
+    wireWaste: 10,
+    postType: 'tpost',
+    postSpacing: 12,
+    postReserve: 5,
+    comboPrimary: 'tpost',
+    comboSecondary: 'wood',
+    comboPrimaryPct: 75,
+    terminalPostType: 'wood',
+    braceMode: 'hbrace',
+    braceFactor: 1,
+    twitchWirePerBrace: 20,
+    electricFence: false,
+    energizerType: 'solar',
+    energizerSafetyFactor: 2,
+    groundRods: 3,
+    lightningDiverters: 1,
+    laborPerFt: 2.75,
+    taxRate: 0,
+    contingencyRate: 8
+  });
+
+  const state = {
+    ...DEFAULT_STATE,
+    gates: [],
+    prices: { ...Core.DEFAULT_PRICES },
+    mapGeoJson: { type: 'FeatureCollection', features: [] },
+    mapCamera: { center: [-96.5, 32.8], zoom: 5, bearing: 0, pitch: 0 },
+    mapStats: { lengthFeet: 0, nodeCount: 0, segmentCount: 0, coordinates: [] },
+    bom: [],
+    totals: { materials: 0, labor: 0, contingency: 0, tax: 0, total: 0 },
+    calculation: {
+      mappedFenceFeet: 0,
+      netFenceFeet: 0,
+      gateOpeningFeet: 0,
+      gateCount: 0,
+      terminalCount: 0,
+      linePosts: 0,
+      wireFeet: 0,
+      energizerMiles: 0,
+      braceAssemblies: 0,
+      costPerFoot: 0
+    }
+  };
+
+  const projectMeta = {
+    id: ProjectFiles.createUuid(),
+    createdAt: new Date().toISOString(),
+    updatedAt: '',
+    lastSavedHash: '',
+    statusOverride: '',
+    statusOverrideClass: ''
+  };
+
+  const runtime = {
+    map: null,
+    draw: null,
+    mapReady: false,
+    addressMarker: null,
+    restoring: false,
+    sessionTimer: null,
+    statusTimer: null
+  };
+
+  const $ = id => document.getElementById(id);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, num(value)));
+  const int = (value, fallback = 0) => Math.round(num(value, fallback));
+  const round = (value, places = 2) => Math.round(num(value) * Math.pow(10, places)) / Math.pow(10, places);
+  const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num(value));
+  const qty = value => new Intl.NumberFormat('en-US', { maximumFractionDigits: Number.isInteger(num(value)) ? 0 : 2 }).format(num(value));
+  const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
+  }[char]));
+
+  function init() {
+    bindEvents();
+    renderPriceDrawer();
+    renderGateList();
+    hydrateStateFromInputs();
+
+    runtime.restoring = true;
+    const recovered = restoreSessionRecovery();
+    runtime.restoring = false;
+
+    if (!recovered) {
+      syncMapStatsFromGeoJson(state.mapGeoJson);
+      populateInputsFromState();
+    }
+
+    renderAll({ skipPersist: true });
+    initializeRuntimeServices();
+    updateProjectStatus();
+
+    if (recovered) {
+      toast('Active session restored after refresh.', 'success');
+    }
+  }
+
+  function bindEvents() {
+    $$('.step-tab').forEach(button => button.addEventListener('click', () => setStep(Number(button.dataset.step))));
+
+    $('wireChoices').addEventListener('click', event => {
+      const card = event.target.closest('[data-wire]');
+      if (!card) return;
+      state.wireType = card.dataset.wire;
+      const meta = Core.WIRE_META[state.wireType];
+      state.wireLines = meta.suggestedLines;
+      state.postSpacing = meta.suggestedSpacing;
+      $('wireLines').value = state.wireLines;
+      $('postSpacing').value = state.postSpacing;
+      if (state.wireType === 'electric' && !state.electricFence) {
+        state.electricFence = true;
+        $('electricToggle').checked = true;
+      }
+      renderAll();
+    });
+
+    $('postChoices').addEventListener('click', event => {
+      const card = event.target.closest('[data-post]');
+      if (!card) return;
+      state.postType = card.dataset.post;
+      renderAll();
+    });
+
+    const liveInputs = [
+      'projectName','projectAddress','wireLines','wireWaste','postSpacing','postReserve',
+      'comboPrimary','comboSecondary','comboPrimaryPct','terminalPostType','braceMode',
+      'braceFactor','twitchWirePerBrace','electricToggle','energizerType',
+      'energizerSafetyFactor','groundRods','lightningDiverters','laborPerFt','taxRate',
+      'contingencyRate','projectNotes'
+    ];
+
+    liveInputs.forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      const eventName = (el.type === 'number' || el.type === 'range' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+        ? 'input'
+        : 'change';
+      el.addEventListener(eventName, () => {
+        hydrateStateFromInputs();
+        renderAll();
+      });
+      if (eventName !== 'change') {
+        el.addEventListener('change', () => {
+          hydrateStateFromInputs();
+          renderAll();
+        });
+      }
+    });
+
+    $('addGateBtn').addEventListener('click', () => addGate());
+    $('gateList').addEventListener('input', handleGateInput);
+    $('gateList').addEventListener('change', handleGateInput);
+    $('gateList').addEventListener('click', handleGateClick);
+
+    $('priceDrawer').addEventListener('input', handlePriceInput);
+    $('bomBody').addEventListener('input', handleBomCostInput);
+    $('resetPricesBtn').addEventListener('click', () => {
+      state.prices = { ...Core.DEFAULT_PRICES };
+      renderPriceDrawer();
+      renderAll();
+      toast('Material pricing reset to example defaults.');
+    });
+
+    $('drawFenceBtn').addEventListener('click', startDrawing);
+    $('editFenceBtn').addEventListener('click', editFence);
+    $('clearMapBtn').addEventListener('click', clearFence);
+    $('fitFenceBtn').addEventListener('click', fitFence);
+    $('unitToggleBtn').addEventListener('click', toggleUnits);
+    $('searchBtn').addEventListener('click', geocodeAddress);
+    $('addressSearch').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        geocodeAddress();
+      }
+    });
+    $('searchResults').addEventListener('click', handleSearchResult);
+    $('retryMapBtn').addEventListener('click', initializeRuntimeServices);
+
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.map-search')) $('searchResults').classList.add('hidden');
+
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (action === 'open-project') openProjectPicker();
+      if (action === 'save-project') saveProjectFile();
+      if (action) closeActionMenus();
+    });
+
+    $('openProjectBtn').addEventListener('click', openProjectPicker);
+    $('saveProjectBtn').addEventListener('click', saveProjectFile);
+    $('projectFileInput').addEventListener('change', handleProjectFileSelection);
+    $('duplicateProjectBtn').addEventListener('click', openDuplicateModal);
+    $('clearSessionBtn').addEventListener('click', requestClearSession);
+
+    ['saveBottomBtn'].forEach(id => $(id).addEventListener('click', saveProjectFile));
+
+    $('exportPdfTopBtn').addEventListener('click', exportPdf);
+    $('exportCsvTopBtn').addEventListener('click', exportCsv);
+    $('exportPngBtn').addEventListener('click', exportMapPng);
+    $('exportGeoJsonBtn').addEventListener('click', exportGeoJson);
+    $('printTopBtn').addEventListener('click', printReport);
+    $('exportCsvBtn').addEventListener('click', exportCsv);
+    $('printBtn').addEventListener('click', printReport);
+
+    ['shareTopBtn','shareBottomBtn'].forEach(id => $(id).addEventListener('click', openShareModal));
+    ['copySummaryTopBtn','copySummaryBtn'].forEach(id => $(id).addEventListener('click', copySummary));
+
+    ['closeShareBtn','cancelShareBtn'].forEach(id => $(id).addEventListener('click', closeShareModal));
+    $('shareModal').addEventListener('click', event => {
+      if (event.target === $('shareModal')) closeShareModal();
+    });
+    $('sendShareBtn').addEventListener('click', sendEstimate);
+
+    $('cancelNewBtn').addEventListener('click', () => $('confirmModal').classList.add('hidden'));
+    $('confirmNewBtn').addEventListener('click', clearSession);
+    $('confirmModal').addEventListener('click', event => {
+      if (event.target === $('confirmModal')) $('confirmModal').classList.add('hidden');
+    });
+
+    ['closeDuplicateBtn','cancelDuplicateBtn'].forEach(id => $(id).addEventListener('click', closeDuplicateModal));
+    $('confirmDuplicateBtn').addEventListener('click', duplicateProject);
+    $('duplicateModal').addEventListener('click', event => {
+      if (event.target === $('duplicateModal')) closeDuplicateModal();
+    });
+
+    window.addEventListener('resize', () => {
+      if (runtime.map) runtime.map.resize();
+    });
+
+    window.addEventListener('beforeunload', event => {
+      saveSessionRecoveryNow();
+      if (hasMeaningfulWork() && hasUnsavedChanges()) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        closeShareModal();
+        closeDuplicateModal();
+        $('confirmModal').classList.add('hidden');
+        closeActionMenus();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        saveProjectFile();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        openProjectPicker();
+      }
+    });
+  }
+
+  function hydrateStateFromInputs() {
+    state.wireLines = clamp(int($('wireLines').value, 1), 1, 12);
+    state.wireWaste = clamp(num($('wireWaste').value, 10), 0, 50);
+    state.postSpacing = clamp(num($('postSpacing').value, 12), 1, 500);
+    state.postReserve = clamp(num($('postReserve').value, 5), 0, 100);
+    state.comboPrimary = Core.POST_META[$('comboPrimary').value] ? $('comboPrimary').value : 'tpost';
+    state.comboSecondary = Core.POST_META[$('comboSecondary').value] ? $('comboSecondary').value : 'wood';
+    if (state.comboPrimary === state.comboSecondary) {
+      state.comboSecondary = state.comboPrimary === 'tpost' ? 'wood' : 'tpost';
+      $('comboSecondary').value = state.comboSecondary;
+    }
+    state.comboPrimaryPct = clamp(num($('comboPrimaryPct').value, 75), 10, 90);
+    state.terminalPostType = $('terminalPostType').value === 'steelPipe' ? 'steelPipe' : 'wood';
+    state.braceMode = ['hbrace','diagonal','none'].includes($('braceMode').value) ? $('braceMode').value : 'hbrace';
+    state.braceFactor = clamp(num($('braceFactor').value, 1), 0, 2);
+    state.twitchWirePerBrace = clamp(num($('twitchWirePerBrace').value, 20), 0, 100);
+    state.electricFence = $('electricToggle').checked;
+    state.energizerType = ['solar','ac','battery'].includes($('energizerType').value) ? $('energizerType').value : 'solar';
+    state.energizerSafetyFactor = clamp(num($('energizerSafetyFactor').value, 2), 1, 5);
+    state.groundRods = clamp(int($('groundRods').value, 3), 1, 20);
+    state.lightningDiverters = clamp(int($('lightningDiverters').value, 1), 0, 10);
+    state.laborPerFt = Math.max(0, num($('laborPerFt').value, 0));
+    state.taxRate = clamp(num($('taxRate').value), 0, 30);
+    state.contingencyRate = clamp(num($('contingencyRate').value), 0, 100);
+  }
+
+  function populateInputsFromState() {
+    $('wireLines').value = state.wireLines;
+    $('wireWaste').value = state.wireWaste;
+    $('postSpacing').value = state.postSpacing;
+    $('postReserve').value = state.postReserve;
+    $('comboPrimary').value = state.comboPrimary;
+    $('comboSecondary').value = state.comboSecondary;
+    $('comboPrimaryPct').value = state.comboPrimaryPct;
+    $('terminalPostType').value = state.terminalPostType;
+    $('braceMode').value = state.braceMode;
+    $('braceFactor').value = state.braceFactor;
+    $('twitchWirePerBrace').value = state.twitchWirePerBrace;
+    $('electricToggle').checked = state.electricFence;
+    $('energizerType').value = state.energizerType;
+    $('energizerSafetyFactor').value = state.energizerSafetyFactor;
+    $('groundRods').value = state.groundRods;
+    $('lightningDiverters').value = state.lightningDiverters;
+    $('laborPerFt').value = state.laborPerFt;
+    $('taxRate').value = state.taxRate;
+    $('contingencyRate').value = state.contingencyRate;
+    $('unitToggleBtn').textContent = state.unitSystem === 'meters' ? 'Meters' : 'Feet';
+  }
+
+  function setStep(step) {
+    state.activeStep = clamp(int(step, 1), 1, 6);
+    $$('.step-tab').forEach(button =>
+      button.classList.toggle('active', Number(button.dataset.step) === state.activeStep));
+    $$('.step-panel').forEach(panel =>
+      panel.classList.toggle('hidden', Number(panel.dataset.panel) !== state.activeStep));
+    if (!runtime.restoring) {
+      updateProjectStatus();
+      scheduleSessionRecovery();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Runtime configuration / Mapbox
+  // ---------------------------------------------------------------------------
+
+  function initializeRuntimeServices() {
+    const token = runtimeConfig.mapboxAccessToken.trim();
+    const configured = runtimeConfig.services.mapConfigured && token.startsWith('pk.');
+
+    if (!configured) {
+      showMapConfigurationError(
+        'This RanchAssist deployment has not been fully configured by the site administrator. ' +
+        'Your project data remains available, but mapping cannot start right now.'
+      );
+      return;
+    }
+
+    hideMapConfigurationError();
+    initializeMap(token);
+  }
+
+  function showMapConfigurationError(message) {
+    $('mapConfigMessage').textContent = message;
+    $('mapConfigScrim').classList.remove('hidden');
+    setMapControlsEnabled(false);
+  }
+
+  function hideMapConfigurationError() {
+    $('mapConfigScrim').classList.add('hidden');
+  }
+
+  function setMapControlsEnabled(enabled) {
+    ['addressSearch','searchBtn','drawFenceBtn','editFenceBtn','clearMapBtn','fitFenceBtn']
+      .forEach(id => {
+        if ($(id)) $(id).disabled = !enabled;
+      });
+  }
+
+  function initializeMap(token) {
+    if (!window.mapboxgl || !window.MapboxDraw) {
+      showMapConfigurationError(
+        'The map libraries could not load. Check the network connection and retry. Your project data has not been lost.'
+      );
+      return;
+    }
+
+    if (runtime.map) {
+      try { runtime.map.remove(); } catch (_) {}
+      runtime.map = null;
+      runtime.draw = null;
+      runtime.mapReady = false;
+    }
+
+    try {
+      mapboxgl.accessToken = token;
+      runtime.map = new mapboxgl.Map({
+        container: 'map',
+        style: runtimeConfig.defaultMapStyle,
+        center: state.mapCamera.center,
+        zoom: state.mapCamera.zoom,
+        bearing: state.mapCamera.bearing,
+        pitch: state.mapCamera.pitch,
+        attributionControl: true,
+        preserveDrawingBuffer: true
+      });
+
+      runtime.map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+      const scale = new mapboxgl.ScaleControl({ maxWidth: 120, unit: state.unitSystem === 'meters' ? 'metric' : 'imperial' });
+      runtime.map.addControl(scale, 'bottom-right');
+
+      runtime.draw = new MapboxDraw({
+        displayControlsDefault: false,
+        controls: {},
+        defaultMode: 'simple_select',
+        styles: drawStyles()
+      });
+      runtime.map.addControl(runtime.draw);
+
+      runtime.map.on('load', () => {
+        runtime.mapReady = true;
+        hideMapConfigurationError();
+        setMapControlsEnabled(true);
+
+        if (state.mapGeoJson?.features?.length) {
+          try {
+            runtime.draw.set(ProjectFiles.sanitizeGeoJson(state.mapGeoJson));
+          } catch (_) {
+            toast('Saved map geometry could not be restored.', 'error');
+          }
+        }
+        syncMapState({ preserveCamera: true });
+        updateDrawButtonStates();
+      });
+
+      ['draw.create','draw.update','draw.delete'].forEach(eventName =>
+        runtime.map.on(eventName, () => syncMapState()));
+
+      runtime.map.on('draw.selectionchange', updateDrawButtonStates);
+      runtime.map.on('moveend', () => {
+        state.mapCamera = captureMapCamera();
+        scheduleSessionRecovery();
+      });
+
+      runtime.map.on('error', event => {
+        const message = String(event?.error?.message || '');
+        if (/401|403|token|unauthorized|access denied/i.test(message)) {
+          runtime.mapReady = false;
+          showMapConfigurationError(
+            'The map service is unavailable for this deployment. The site administrator should review the map-service configuration. Your project data has not been lost.'
+          );
+        }
+      });
+    } catch (_) {
+      showMapConfigurationError(
+        'The map service could not start. The site administrator should review the deployment configuration. Your project data has not been lost.'
+      );
+    }
+  }
+
+  function drawStyles() {
+    return [
+      {
+        id: 'ra-fence-line-inactive',
+        type: 'line',
+        filter: ['all',['==','active','false'],['==','$type','LineString']],
+        layout: { 'line-cap':'round','line-join':'round' },
+        paint: { 'line-color':'#111111','line-width':4 }
+      },
+      {
+        id: 'ra-fence-line-active',
+        type: 'line',
+        filter: ['all',['==','active','true'],['==','$type','LineString']],
+        layout: { 'line-cap':'round','line-join':'round' },
+        paint: { 'line-color':'#4C6752','line-width':5,'line-dasharray':[1.3,1.1] }
+      },
+      {
+        id: 'ra-fence-vertex-halo',
+        type: 'circle',
+        filter: ['all',['==','meta','vertex'],['==','$type','Point']],
+        paint: { 'circle-radius':7,'circle-color':'#FFFFFF' }
+      },
+      {
+        id: 'ra-fence-vertex',
+        type: 'circle',
+        filter: ['all',['==','meta','vertex'],['==','$type','Point']],
+        paint: { 'circle-radius':4.5,'circle-color':'#4C6752','circle-stroke-color':'#0A0A09','circle-stroke-width':1 }
+      },
+      {
+        id: 'ra-fence-midpoint',
+        type: 'circle',
+        filter: ['all',['==','meta','midpoint'],['==','$type','Point']],
+        paint: { 'circle-radius':3,'circle-color':'#FFFFFF','circle-stroke-color':'#4C6752','circle-stroke-width':1.5 }
+      }
+    ];
+  }
+
+  function startDrawing() {
+    if (!ensureMapReady()) return;
+    runtime.draw.changeMode('draw_line_string');
+    $('drawFenceBtn').classList.add('active');
+    toast('Click each fence corner or terminal. Double-click the last node to finish.');
+  }
+
+  function editFence() {
+    if (!ensureMapReady()) return;
+    const lines = getLineFeatures();
+    if (!lines.length) {
+      toast('No fence drawn yet. Select Draw Fence, then click along the proposed fence line.', 'error');
+      return;
+    }
+    const selected = runtime.draw.getSelectedIds();
+    const id = selected.length ? selected[0] : lines[lines.length - 1].id;
+    try {
+      runtime.draw.changeMode('direct_select', { featureId: id });
+      toast('Drag nodes to refine the fence path. Click a midpoint to add a node.');
+    } catch (_) {
+      runtime.draw.changeMode('simple_select', { featureIds: [id] });
+    }
+  }
+
+  function clearFence() {
+    if (!ensureMapReady()) return;
+    runtime.draw.deleteAll();
+    syncMapState();
+    toast('Mapped fence cleared.');
+  }
+
+  function fitFence() {
+    if (!ensureMapReady()) return;
+    const coords = getAllCoordinates();
+    if (!coords.length) {
+      toast('No fence drawn yet. Draw a fence before using Fit Fence.', 'error');
+      return;
+    }
+    const bounds = coords.reduce(
+      (b, coord) => b.extend(coord),
+      new mapboxgl.LngLatBounds(coords[0], coords[0])
+    );
+    runtime.map.fitBounds(bounds, {
+      padding: { top: 90, right: 70, bottom: 90, left: 70 },
+      maxZoom: 18,
+      duration: 550
+    });
+  }
+
+  function toggleUnits() {
+    state.unitSystem = state.unitSystem === 'feet' ? 'meters' : 'feet';
+    $('unitToggleBtn').textContent = state.unitSystem === 'feet' ? 'Feet' : 'Meters';
+    renderAll();
+
+    if (runtime.mapReady && runtime.map) {
+      // Rebuild the standard Mapbox scale control by reloading the map is unnecessary;
+      // the application values remain authoritative and unit-explicit.
+    }
+  }
+
+  function ensureMapReady() {
+    if (!runtime.mapReady || !runtime.draw) {
+      showMapConfigurationError(
+        'The map is unavailable right now. Your project data remains available, but mapping cannot continue until the service is restored.'
+      );
+      toast('Map service is unavailable. Your project data has not been lost.', 'error');
+      return false;
+    }
+    return true;
+  }
+
+  function getLineFeatures() {
+    if (!runtime.draw) {
+      return (state.mapGeoJson?.features || []).filter(feature => feature.geometry?.type === 'LineString');
+    }
+    return (runtime.draw.getAll()?.features || []).filter(feature => feature.geometry?.type === 'LineString');
+  }
+
+  function getAllCoordinates() {
+    return getLineFeatures().flatMap(feature => feature.geometry.coordinates || []);
+  }
+
+  function syncMapState(options = {}) {
+    if (runtime.draw) {
+      try {
+        state.mapGeoJson = ProjectFiles.sanitizeGeoJson(runtime.draw.getAll());
+      } catch (_) {
+        state.mapGeoJson = { type: 'FeatureCollection', features: [] };
+      }
+    }
+    syncMapStatsFromGeoJson(state.mapGeoJson);
+    if (!options.preserveCamera) state.mapCamera = captureMapCamera();
+    updateDrawButtonStates();
+    renderAll();
+  }
+
+  function syncMapStatsFromGeoJson(featureCollection) {
+    const lines = (featureCollection?.features || []).filter(feature => feature.geometry?.type === 'LineString');
+    let lengthFeet = 0;
+    let nodeCount = 0;
+    let segmentCount = 0;
+    const coordinates = [];
+
+    lines.forEach(line => {
+      const coords = line.geometry.coordinates || [];
+      nodeCount += coords.length;
+      segmentCount += Math.max(0, coords.length - 1);
+      coordinates.push(...coords);
+      for (let i = 1; i < coords.length; i++) {
+        lengthFeet += haversineFeet(coords[i - 1], coords[i]);
+      }
+    });
+
+    state.mapStats = { lengthFeet, nodeCount, segmentCount, coordinates };
+  }
+
+  function updateDrawButtonStates() {
+    const hasLines = getLineFeatures().length > 0;
+    $('editFenceBtn').disabled = !runtime.mapReady || !hasLines;
+    $('clearMapBtn').disabled = !runtime.mapReady || !hasLines;
+    $('fitFenceBtn').disabled = !runtime.mapReady || !hasLines;
+    $('drawFenceBtn').disabled = !runtime.mapReady;
+    if (runtime.draw?.getMode?.() !== 'draw_line_string') $('drawFenceBtn').classList.remove('active');
+  }
+
+  function captureMapCamera() {
+    if (!runtime.map) return { ...state.mapCamera };
+    const center = runtime.map.getCenter();
+    return {
+      center: [round(center.lng, 7), round(center.lat, 7)],
+      zoom: round(runtime.map.getZoom(), 4),
+      bearing: round(runtime.map.getBearing(), 3),
+      pitch: round(runtime.map.getPitch(), 3)
+    };
+  }
+
+  function haversineFeet(a, b) {
+    const [lng1, lat1] = a.map(Number);
+    const [lng2, lat2] = b.map(Number);
+    const R = 6371008.8;
+    const toRad = degrees => degrees * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const s1 = Math.sin(dLat / 2);
+    const s2 = Math.sin(dLng / 2);
+    const h = s1 * s1 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * s2 * s2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h))) * Core.FEET_PER_METER;
+  }
+
+  async function geocodeAddress() {
+    const query = $('addressSearch').value.trim();
+    if (!query) {
+      toast('Enter a property address or place to search.', 'error');
+      return;
+    }
+    if (!runtime.mapReady || !runtimeConfig.mapboxAccessToken) {
+      toast('Map search is unavailable because the map service is not configured for this deployment.', 'error');
+      return;
+    }
+
+    $('searchBtn').disabled = true;
+    $('searchBtn').textContent = 'Searching…';
+
+    try {
+      const url = new URL('https://api.mapbox.com/search/geocode/v6/forward');
+      url.searchParams.set('q', query);
+      url.searchParams.set('access_token', runtimeConfig.mapboxAccessToken);
+      url.searchParams.set('limit', '5');
+      url.searchParams.set('autocomplete', 'false');
+
+      const response = await fetch(url.toString(), { method: 'GET' });
+      if (!response.ok) {
+        throw new Error(response.status === 401 || response.status === 403
+          ? 'Map search is unavailable for this deployment.'
+          : 'Unable to search that location right now.');
+      }
+
+      const data = await response.json();
+      renderSearchResults(data.features || []);
+    } catch (error) {
+      toast(error?.message || 'Unable to search that location right now.', 'error');
+    } finally {
+      $('searchBtn').disabled = false;
+      $('searchBtn').textContent = 'Search';
+    }
+  }
+
+  function renderSearchResults(features) {
+    const box = $('searchResults');
+    if (!features.length) {
+      box.innerHTML = '<div class="search-result-empty">No matching locations found.</div>';
+      box.classList.remove('hidden');
+      return;
+    }
+
+    box.innerHTML = features.map((feature, index) => {
+      const props = feature.properties || {};
+      const title = props.name_preferred || props.name || props.full_address || 'Location';
+      const subtitle = props.full_address || [props.place_formatted, props.context?.place?.name].filter(Boolean).join(', ') || '';
+      const coords = feature.geometry?.coordinates || [];
+      const lng = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return '';
+      return `<button class="search-result" type="button" data-result="${index}" data-lng="${lng}" data-lat="${lat}" data-address="${escapeHtml(subtitle || title)}">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(subtitle)}</span>
+      </button>`;
+    }).join('');
+
+    box.classList.remove('hidden');
+  }
+
+  function handleSearchResult(event) {
+    const button = event.target.closest('[data-result]');
+    if (!button || !runtime.mapReady || !runtime.map) return;
+
+    const lng = Number(button.dataset.lng);
+    const lat = Number(button.dataset.lat);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+
+    const address = String(button.dataset.address || $('addressSearch').value.trim()).slice(0, 250);
+    $('projectAddress').value = address;
+    $('addressSearch').value = address;
+    $('searchResults').classList.add('hidden');
+
+    runtime.map.flyTo({ center: [lng, lat], zoom: 18, duration: 800 });
+    if (runtime.addressMarker) runtime.addressMarker.remove();
+    runtime.addressMarker = new mapboxgl.Marker({ color: '#0A0A09' }).setLngLat([lng, lat]).addTo(runtime.map);
+    renderAll();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gates / pricing / calculation
+  // ---------------------------------------------------------------------------
+
+  function addGate(type = 'tube') {
+    const meta = Core.GATE_DEFAULTS[type] || Core.GATE_DEFAULTS.tube;
+    state.gates.push({
+      id: ProjectFiles.createUuid(),
+      type,
+      width: meta.width,
+      quantity: 1,
+      unitCost: meta.unitCost
+    });
+    renderGateList();
+    renderAll();
+  }
+
+  function handleGateInput(event) {
+    const row = event.target.closest('[data-gate-index]');
+    if (!row) return;
+
+    const index = Number(row.dataset.gateIndex);
+    const gate = state.gates[index];
+    if (!gate) return;
+    const field = event.target.dataset.field;
+    if (!field) return;
+
+    if (field === 'type') {
+      const oldType = gate.type;
+      gate.type = Core.GATE_DEFAULTS[event.target.value] ? event.target.value : 'custom';
+      const next = Core.GATE_DEFAULTS[gate.type];
+      const old = Core.GATE_DEFAULTS[oldType];
+      if (next && (gate.unitCost === old?.unitCost || !Number.isFinite(Number(gate.unitCost)))) {
+        gate.unitCost = next.unitCost;
+        gate.width = next.width;
+        renderGateList();
+      }
+    } else if (field === 'width') {
+      gate.width = clamp(num(event.target.value), 1, 100);
+    } else if (field === 'quantity') {
+      gate.quantity = clamp(int(event.target.value, 1), 1, 50);
+    } else if (field === 'unitCost') {
+      gate.unitCost = Math.max(0, num(event.target.value));
+    }
+
+    renderAll();
+  }
+
+  function handleGateClick(event) {
+    const button = event.target.closest('[data-remove-gate]');
+    if (!button) return;
+    const index = Number(button.dataset.removeGate);
+    if (!Number.isInteger(index) || index < 0 || index >= state.gates.length) return;
+    state.gates.splice(index, 1);
+    renderGateList();
+    renderAll();
+  }
+
+  function renderGateList() {
+    const list = $('gateList');
+    if (!state.gates.length) {
+      list.innerHTML = '<div class="notice" style="margin-top:0;text-align:center">No gates added. Add a gate to deduct its opening from wire footage.</div>';
+      return;
+    }
+
+    list.innerHTML = state.gates.map((gate, index) => `
+      <div class="gate-row" data-gate-index="${index}">
+        <div>
+          <span class="mini-label">Type</span>
+          <select data-field="type" aria-label="Gate type">
+            ${Object.entries(Core.GATE_DEFAULTS).map(([key, meta]) =>
+              `<option value="${key}" ${gate.type === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <span class="mini-label">Width (ft)</span>
+          <input data-field="width" type="number" inputmode="decimal" min="1" max="100" step="1" value="${round(gate.width,2)}" aria-label="Gate width in feet">
+        </div>
+        <div>
+          <span class="mini-label">Qty</span>
+          <input data-field="quantity" type="number" inputmode="numeric" min="1" max="50" step="1" value="${int(gate.quantity,1)}" aria-label="Gate quantity">
+        </div>
+        <div>
+          <span class="mini-label">Unit cost</span>
+          <input data-field="unitCost" type="number" inputmode="decimal" min="0" step="0.01" value="${round(gate.unitCost,2)}" aria-label="Gate unit cost">
+        </div>
+        <button class="btn btn-icon btn-danger remove-gate" type="button" data-remove-gate="${index}" aria-label="Remove gate ${index + 1}">×</button>
+      </div>`).join('');
+  }
+
+  function renderPriceDrawer() {
+    $('priceDrawer').innerHTML = Core.PRICE_META.map(([key, label]) => `
+      <div class="price-row">
+        <label for="price_${key}">${escapeHtml(label)}</label>
+        <input id="price_${key}" data-price-key="${key}" type="number" inputmode="decimal" min="0" step="0.01" value="${round(state.prices[key],2)}">
+      </div>`).join('');
+  }
+
+  function handlePriceInput(event) {
+    const key = event.target.dataset.priceKey;
+    if (!key || !(key in Core.DEFAULT_PRICES)) return;
+    state.prices[key] = Math.max(0, num(event.target.value));
+    renderAll({ skipPriceDrawer: true });
+  }
+
+  function handleBomCostInput(event) {
+    const key = event.target.dataset.priceKey;
+    if (key && key in Core.DEFAULT_PRICES) {
+      state.prices[key] = Math.max(0, num(event.target.value));
+      const priceInput = document.querySelector(`#price_${CSS.escape(key)}`);
+      if (priceInput && priceInput !== event.target) priceInput.value = round(state.prices[key], 2);
+      renderAll({ skipPriceDrawer: true });
+      return;
+    }
+
+    const gateIndex = event.target.dataset.gateCostIndex;
+    if (gateIndex !== undefined) {
+      const gate = state.gates[Number(gateIndex)];
+      if (gate) gate.unitCost = Math.max(0, num(event.target.value));
+      renderGateList();
+      renderAll({ skipPriceDrawer: true });
+    }
+  }
+
+  function calculate() {
+    const result = Core.calculateFenceEstimate({
+      mapStats: state.mapStats,
+      wireType: state.wireType,
+      wireLines: state.wireLines,
+      wireWaste: state.wireWaste,
+      postType: state.postType,
+      postSpacing: state.postSpacing,
+      postReserve: state.postReserve,
+      comboPrimary: state.comboPrimary,
+      comboSecondary: state.comboSecondary,
+      comboPrimaryPct: state.comboPrimaryPct,
+      terminalPostType: state.terminalPostType,
+      braceMode: state.braceMode,
+      braceFactor: state.braceFactor,
+      twitchWirePerBrace: state.twitchWirePerBrace,
+      gates: state.gates,
+      electricFence: state.electricFence,
+      energizerType: state.energizerType,
+      energizerSafetyFactor: state.energizerSafetyFactor,
+      groundRods: state.groundRods,
+      lightningDiverters: state.lightningDiverters,
+      laborPerFt: state.laborPerFt,
+      taxRate: state.taxRate,
+      contingencyRate: state.contingencyRate,
+      prices: state.prices
+    });
+
+    state.bom = result.bom;
+    state.calculation = result.calculation;
+    state.totals = result.totals;
+    return result;
+  }
+
+  function renderAll(options = {}) {
+    if (!runtime.restoring) hydrateStateFromInputs();
+    calculate();
+    renderMapStats();
+    renderChoiceStates();
+    renderDynamicFields();
+    renderBom();
+    renderTotals();
+    renderCalculationDetails();
+
+    if (!options.skipPriceDrawer) syncPriceInputs();
+    updateProjectStatus();
+
+    if (!options.skipPersist && !runtime.restoring) scheduleSessionRecovery();
+  }
+
+  function renderMapStats() {
+    $('mapLengthStat').textContent = formatDistance(state.mapStats.lengthFeet);
+    $('mapNodeStat').textContent = state.mapStats.nodeCount;
+    $('mapSegmentStat').textContent = state.mapStats.segmentCount;
+    $('summaryMapped').textContent = formatDistance(state.mapStats.lengthFeet);
+    $('summaryNet').textContent = formatDistance(state.calculation.netFenceFeet);
+    $('summaryTotal').textContent = money(state.totals.total);
+    $('summaryPerFoot').textContent = `${money(state.calculation.costPerFoot)} / ft`;
+    $('wireNeededBadge').textContent = `${formatDistance(state.calculation.wireFeet)} wire`;
+    $('linePostBadge').textContent = `${qty(state.calculation.linePosts)} line posts`;
+    $('cornerBadge').textContent = `${state.mapStats.nodeCount} mapped nodes`;
+    $('gateOpeningText').textContent = formatDistance(state.calculation.gateOpeningFeet);
+    $('energizerRating').textContent = `${qty(state.calculation.energizerMiles)} miles minimum`;
+  }
+
+  function renderChoiceStates() {
+    $$('#wireChoices [data-wire]').forEach(element =>
+      element.classList.toggle('selected', element.dataset.wire === state.wireType));
+    $$('#postChoices [data-post]').forEach(element =>
+      element.classList.toggle('selected', element.dataset.post === state.postType));
+  }
+
+  function renderDynamicFields() {
+    $('combinationFields').classList.toggle('hidden', state.postType !== 'combination');
+    $('electricFields').classList.toggle('hidden', !state.electricFence);
+    $('electricToggle').checked = state.electricFence;
+
+    const primary = Core.POST_META[state.comboPrimary]?.label || state.comboPrimary;
+    const secondary = Core.POST_META[state.comboSecondary]?.label || state.comboSecondary;
+    $('comboRatioText').textContent = `${state.comboPrimaryPct}% ${primary} / ${100 - state.comboPrimaryPct}% ${secondary}`;
+  }
+
+  function renderBom() {
+    const body = $('bomBody');
+    if (!state.bom.length) {
+      body.innerHTML = '<tr><td colspan="5" style="padding:22px;text-align:center;color:#666660">No bill of materials yet. Draw a fence line to generate quantities.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = state.bom.map(row => {
+      const costAttr = row.priceKey
+        ? `data-price-key="${escapeHtml(row.priceKey)}"`
+        : (row.gateIndex !== undefined ? `data-gate-cost-index="${row.gateIndex}"` : '');
+      return `<tr>
+        <td><span class="bom-category">${escapeHtml(row.category)}</span></td>
+        <td><span class="bom-item">${escapeHtml(row.item)}</span></td>
+        <td class="qty">${qty(row.qty)} ${escapeHtml(row.unit)}</td>
+        <td class="money"><input class="unit-cost" ${costAttr} type="number" inputmode="decimal" min="0" step="0.01" value="${round(row.unitCost,2)}" aria-label="Unit cost for ${escapeHtml(row.item)}"></td>
+        <td class="money"><strong>${money(row.total)}</strong></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTotals() {
+    $('materialsTotal').textContent = money(state.totals.materials);
+    $('laborTotal').textContent = money(state.totals.labor);
+    $('contingencyTotal').textContent = money(state.totals.contingency);
+    $('taxTotal').textContent = money(state.totals.tax);
+    $('grandTotal').textContent = money(state.totals.total);
+  }
+
+  function renderCalculationDetails() {
+    const c = state.calculation;
+    $('calcNetFormula').textContent =
+      `${qty(c.mappedFenceFeet)} ft − ${qty(c.gateOpeningFeet)} ft = ${qty(c.netFenceFeet)} ft`;
+    $('calcWireFormula').textContent =
+      `${qty(c.netFenceFeet)} ft × ${state.wireLines} strands × ${(1 + state.wireWaste / 100).toFixed(2)} = ${qty(c.wireFeet)} ft`;
+    $('calcPostFormula').textContent =
+      `${qty(c.linePosts)} line posts at ${qty(state.postSpacing)} ft spacing with ${qty(state.postReserve)}% reserve`;
+    $('calcLaborFormula').textContent =
+      `${qty(c.mappedFenceFeet)} ft × ${money(state.laborPerFt)} = ${money(state.totals.labor)}`;
+    $('calcTotalFormula').textContent =
+      `${money(state.totals.materials)} + ${money(state.totals.labor)} + ${money(state.totals.contingency)} + ${money(state.totals.tax)} = ${money(state.totals.total)}`;
+  }
+
+  function syncPriceInputs() {
+    Core.PRICE_META.forEach(([key]) => {
+      const input = document.querySelector(`#price_${CSS.escape(key)}`);
+      if (input && document.activeElement !== input) input.value = round(state.prices[key], 2);
+    });
+  }
+
+  function formatDistance(feet) {
+    const value = Math.max(0, num(feet));
+    return state.unitSystem === 'meters'
+      ? `${qty(value / Core.FEET_PER_METER)} m`
+      : `${qty(value)} ft`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // RanchAssist .ra project files / session recovery
+  // ---------------------------------------------------------------------------
+
+  function captureEditableState() {
+    return {
+      schemaVersion: ProjectFiles.STATE_SCHEMA_VERSION,
+      projectInfo: {
+        address: String($('projectAddress').value || '').trim().slice(0, 250),
+        notes: String($('projectNotes').value || '').trim().slice(0, 3000)
+      },
+      ui: {
+        activeStep: state.activeStep,
+        unitSystem: state.unitSystem
+      },
+      estimator: {
+        wireType: state.wireType,
+        wireLines: state.wireLines,
+        wireWaste: state.wireWaste,
+        postType: state.postType,
+        postSpacing: state.postSpacing,
+        postReserve: state.postReserve,
+        comboPrimary: state.comboPrimary,
+        comboSecondary: state.comboSecondary,
+        comboPrimaryPct: state.comboPrimaryPct,
+        terminalPostType: state.terminalPostType,
+        braceMode: state.braceMode,
+        braceFactor: state.braceFactor,
+        twitchWirePerBrace: state.twitchWirePerBrace,
+        gates: state.gates.map(gate => ({
+          id: String(gate.id || ProjectFiles.createUuid()),
+          type: Core.GATE_DEFAULTS[gate.type] ? gate.type : 'custom',
+          width: clamp(num(gate.width), 1, 100),
+          quantity: clamp(int(gate.quantity, 1), 1, 50),
+          unitCost: Math.max(0, num(gate.unitCost))
+        })),
+        electricFence: state.electricFence,
+        energizerType: state.energizerType,
+        energizerSafetyFactor: state.energizerSafetyFactor,
+        groundRods: state.groundRods,
+        lightningDiverters: state.lightningDiverters,
+        laborPerFt: state.laborPerFt,
+        taxRate: state.taxRate,
+        contingencyRate: state.contingencyRate,
+        prices: sanitizePrices(state.prices)
+      }
+    };
+  }
+
+  function captureSpatialState() {
+    const geojson = runtime.draw ? runtime.draw.getAll() : state.mapGeoJson;
+    return {
+      geojson: ProjectFiles.sanitizeGeoJson(geojson),
+      camera: ProjectFiles.sanitizeCamera(captureMapCamera()),
+      selectedFeatureId: runtime.draw?.getSelectedIds?.()[0] || null
+    };
+  }
+
+  function sanitizePrices(prices) {
+    const clean = {};
+    Object.keys(Core.DEFAULT_PRICES).forEach(key => {
+      clean[key] = Math.max(0, num(prices?.[key], Core.DEFAULT_PRICES[key]));
+    });
+    return clean;
+  }
+
+  function buildProjectFilePayload() {
+    hydrateStateFromInputs();
+    calculate();
+
+    return ProjectFiles.buildProject({
+      projectMeta,
+      projectName: $('projectName').value.trim() || 'Fence Cost Estimate',
+      preferences: {
+        units: state.unitSystem === 'meters' ? 'meters' : 'imperial'
+      },
+      state: captureEditableState(),
+      spatial: captureSpatialState()
+    });
+  }
+
+  function saveProjectFile() {
+    try {
+      const payload = buildProjectFilePayload();
+      const json = JSON.stringify(payload, null, 2);
+      ProjectFiles.assertNoCredentialKeys(payload);
+
+      downloadBlob(
+        json,
+        `${ProjectFiles.sanitizeFilename(payload.project.name)}.ra`,
+        ProjectFiles.MIME_TYPE
+      );
+
+      projectMeta.id = payload.project.id;
+      projectMeta.createdAt = payload.project.createdAt;
+      projectMeta.updatedAt = payload.project.updatedAt;
+      projectMeta.lastSavedHash = currentProjectHash();
+      setTemporaryProjectStatus('Project saved', 'saved', 1800);
+      saveSessionRecoveryNow();
+      toast('Project saved. Your RanchAssist .ra project file is ready.', 'success');
+    } catch (_) {
+      toast('Project could not be saved. Check the current project data and try again.', 'error');
+    }
+  }
+
+  function openProjectPicker() {
+    $('projectFileInput').value = '';
+    $('projectFileInput').click();
+  }
+
+  async function handleProjectFileSelection(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_PROJECT_FILE_BYTES) {
+      toast('Project file is too large to open safely.', 'error');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      let raw;
+      try {
+        raw = JSON.parse(text);
+      } catch (_) {
+        const error = new Error('The file may be incomplete or damaged. Try opening another saved copy.');
+        error.code = 'CORRUPT';
+        throw error;
+      }
+
+      const result = ProjectFiles.validateProject(raw);
+      restoreProjectFromRA(result.project);
+
+      projectMeta.lastSavedHash = currentProjectHash();
+      saveSessionRecoveryNow();
+
+      if (result.migrated) {
+        setTemporaryProjectStatus('Project updated', 'opened', 2200);
+        toast('Project updated. This older RanchAssist project was updated to the current format.', 'success');
+      } else {
+        setTemporaryProjectStatus('Project opened', 'opened', 1800);
+        toast('Project opened. Your saved RanchAssist project has been restored.', 'success');
+      }
+    } catch (error) {
+      handleProjectOpenError(error);
+    } finally {
+      event.target.value = '';
+    }
+  }
+
+  function restoreProjectFromRA(project) {
+    runtime.restoring = true;
+    try {
+      const editable = project.state;
+      const spatial = project.spatial || {};
+
+      applyEditableState(editable);
+
+      state.mapGeoJson = ProjectFiles.sanitizeGeoJson(
+        spatial.geojson || editable.mapGeoJson || { type: 'FeatureCollection', features: [] }
+      );
+      state.mapCamera = ProjectFiles.sanitizeCamera(spatial.camera || state.mapCamera);
+      syncMapStatsFromGeoJson(state.mapGeoJson);
+
+      projectMeta.id = project.project.id;
+      projectMeta.createdAt = project.project.createdAt;
+      projectMeta.updatedAt = project.project.updatedAt;
+      $('projectName').value = String(project.project.name || 'Fence Cost Estimate').slice(0, 160);
+
+      populateInputsFromState();
+      renderGateList();
+      renderPriceDrawer();
+      setStep(editable.ui?.activeStep || 1);
+
+      if (runtime.draw && runtime.mapReady) {
+        runtime.draw.set(state.mapGeoJson);
+        runtime.map.jumpTo({
+          center: state.mapCamera.center,
+          zoom: state.mapCamera.zoom,
+          bearing: state.mapCamera.bearing,
+          pitch: state.mapCamera.pitch
+        });
+      }
+
+      renderAll({ skipPersist: true });
+    } finally {
+      runtime.restoring = false;
+    }
+  }
+
+  function handleProjectOpenError(error) {
+    const code = error?.code || '';
+    let message = 'Project file could not be read. The file may be incomplete or damaged. Try opening another saved copy.';
+    let status = 'Invalid project file';
+
+    if (code === 'NOT_RA') {
+      message = 'Not a RanchAssist project. Choose a .ra file exported from RanchAssist.';
+      status = 'Invalid project file';
+    } else if (code === 'WRONG_TOOL') {
+      message = `Different RanchAssist tool. This project belongs to ${String(error.tool?.name || 'another RanchAssist tool')}.`;
+      status = 'Incompatible project';
+    } else if (code === 'NEWER_FORMAT' || code === 'NEWER_TOOL_SCHEMA') {
+      message = 'Newer project format. This project was created with a newer version of RanchAssist and cannot be opened safely here.';
+      status = 'Incompatible project';
+    } else if (code === 'INCOMPLETE') {
+      message = 'Project is incomplete. This file is missing information required to restore the project.';
+      status = 'Invalid project file';
+    } else if (error?.message) {
+      message = String(error.message).slice(0, 260);
+    }
+
+    setTemporaryProjectStatus(status, '', 2600);
+    toast(message, 'error');
+  }
+
+  function applyEditableState(editable) {
+    const info = editable?.projectInfo || {};
+    const ui = editable?.ui || {};
+    const estimator = editable?.estimator || {};
+
+    $('projectAddress').value = String(info.address || '').slice(0, 250);
+    $('projectNotes').value = String(info.notes || '').slice(0, 3000);
+
+    state.activeStep = clamp(int(ui.activeStep, 1), 1, 6);
+    state.unitSystem = ui.unitSystem === 'meters' ? 'meters' : 'feet';
+
+    state.wireType = Core.WIRE_META[estimator.wireType] ? estimator.wireType : DEFAULT_STATE.wireType;
+    state.wireLines = clamp(int(estimator.wireLines, DEFAULT_STATE.wireLines), 1, 12);
+    state.wireWaste = clamp(num(estimator.wireWaste, DEFAULT_STATE.wireWaste), 0, 50);
+    state.postType = ['wood','steelPipe','tpost','combination'].includes(estimator.postType) ? estimator.postType : DEFAULT_STATE.postType;
+    state.postSpacing = clamp(num(estimator.postSpacing, DEFAULT_STATE.postSpacing), 1, 500);
+    state.postReserve = clamp(num(estimator.postReserve, DEFAULT_STATE.postReserve), 0, 100);
+    state.comboPrimary = Core.POST_META[estimator.comboPrimary] ? estimator.comboPrimary : DEFAULT_STATE.comboPrimary;
+    state.comboSecondary = Core.POST_META[estimator.comboSecondary] ? estimator.comboSecondary : DEFAULT_STATE.comboSecondary;
+    if (state.comboSecondary === state.comboPrimary) state.comboSecondary = state.comboPrimary === 'tpost' ? 'wood' : 'tpost';
+    state.comboPrimaryPct = clamp(num(estimator.comboPrimaryPct, DEFAULT_STATE.comboPrimaryPct), 10, 90);
+    state.terminalPostType = estimator.terminalPostType === 'steelPipe' ? 'steelPipe' : 'wood';
+    state.braceMode = ['hbrace','diagonal','none'].includes(estimator.braceMode) ? estimator.braceMode : DEFAULT_STATE.braceMode;
+    state.braceFactor = clamp(num(estimator.braceFactor, DEFAULT_STATE.braceFactor), 0, 2);
+    state.twitchWirePerBrace = clamp(num(estimator.twitchWirePerBrace, DEFAULT_STATE.twitchWirePerBrace), 0, 100);
+
+    state.gates = Array.isArray(estimator.gates)
+      ? estimator.gates.slice(0, 100).map(gate => ({
+          id: String(gate?.id || ProjectFiles.createUuid()).slice(0, 80),
+          type: Core.GATE_DEFAULTS[gate?.type] ? gate.type : 'custom',
+          width: clamp(num(gate?.width, 10), 1, 100),
+          quantity: clamp(int(gate?.quantity, 1), 1, 50),
+          unitCost: Math.max(0, num(gate?.unitCost, 0))
+        }))
+      : [];
+
+    state.electricFence = Boolean(estimator.electricFence);
+    state.energizerType = ['solar','ac','battery'].includes(estimator.energizerType) ? estimator.energizerType : DEFAULT_STATE.energizerType;
+    state.energizerSafetyFactor = clamp(num(estimator.energizerSafetyFactor, DEFAULT_STATE.energizerSafetyFactor), 1, 5);
+    state.groundRods = clamp(int(estimator.groundRods, DEFAULT_STATE.groundRods), 1, 20);
+    state.lightningDiverters = clamp(int(estimator.lightningDiverters, DEFAULT_STATE.lightningDiverters), 0, 10);
+    state.laborPerFt = Math.max(0, num(estimator.laborPerFt, DEFAULT_STATE.laborPerFt));
+    state.taxRate = clamp(num(estimator.taxRate, DEFAULT_STATE.taxRate), 0, 30);
+    state.contingencyRate = clamp(num(estimator.contingencyRate, DEFAULT_STATE.contingencyRate), 0, 100);
+    state.prices = sanitizePrices(estimator.prices);
+  }
+
+  function openDuplicateModal() {
+    const currentName = $('projectName').value.trim() || 'Fence Cost Estimate';
+    $('duplicateProjectName').value = `${currentName} Copy`.slice(0, 160);
+    $('duplicateModal').classList.remove('hidden');
+    setTimeout(() => {
+      $('duplicateProjectName').focus();
+      $('duplicateProjectName').select();
+    }, 30);
+  }
+
+  function closeDuplicateModal() {
+    $('duplicateModal').classList.add('hidden');
+  }
+
+  function duplicateProject() {
+    const newName = $('duplicateProjectName').value.trim() || 'Fence Cost Estimate Copy';
+    projectMeta.id = ProjectFiles.createUuid();
+    projectMeta.createdAt = new Date().toISOString();
+    projectMeta.updatedAt = '';
+    projectMeta.lastSavedHash = '';
+    $('projectName').value = newName.slice(0, 160);
+    closeDuplicateModal();
+    renderAll();
+    saveProjectFile();
+  }
+
+  function requestClearSession() {
+    $('confirmModal').classList.remove('hidden');
+  }
+
+  function clearSession() {
+    $('confirmModal').classList.add('hidden');
+    sessionStorage.removeItem(SESSION_KEY);
+
+    runtime.restoring = true;
+    try {
+      Object.assign(state, {
+        ...DEFAULT_STATE,
+        gates: [],
+        prices: { ...Core.DEFAULT_PRICES },
+        mapGeoJson: { type: 'FeatureCollection', features: [] },
+        mapCamera: { center: [-96.5, 32.8], zoom: 5, bearing: 0, pitch: 0 },
+        mapStats: { lengthFeet: 0, nodeCount: 0, segmentCount: 0, coordinates: [] }
+      });
+
+      projectMeta.id = ProjectFiles.createUuid();
+      projectMeta.createdAt = new Date().toISOString();
+      projectMeta.updatedAt = '';
+      projectMeta.lastSavedHash = '';
+
+      $('projectName').value = 'New Fence Project';
+      $('projectAddress').value = '';
+      $('projectNotes').value = '';
+      $('addressSearch').value = '';
+
+      if (runtime.draw) runtime.draw.deleteAll();
+      if (runtime.addressMarker) {
+        runtime.addressMarker.remove();
+        runtime.addressMarker = null;
+      }
+
+      populateInputsFromState();
+      renderGateList();
+      renderPriceDrawer();
+      setStep(1);
+      syncMapStatsFromGeoJson(state.mapGeoJson);
+      renderAll({ skipPersist: true });
+      setTemporaryProjectStatus('Unsaved', '', 1200);
+    } finally {
+      runtime.restoring = false;
+    }
+
+    toast('Session cleared. Saved .ra files on your device were not affected.', 'success');
+  }
+
+  function scheduleSessionRecovery() {
+    clearTimeout(runtime.sessionTimer);
+    runtime.sessionTimer = setTimeout(saveSessionRecoveryNow, 180);
+  }
+
+  function saveSessionRecoveryNow() {
+    try {
+      const payload = {
+        sessionVersion: SESSION_VERSION,
+        toolId: ProjectFiles.TOOL_ID,
+        project: {
+          id: projectMeta.id,
+          name: $('projectName').value.trim().slice(0, 160),
+          createdAt: projectMeta.createdAt,
+          updatedAt: projectMeta.updatedAt,
+          lastSavedHash: projectMeta.lastSavedHash
+        },
+        state: captureEditableState(),
+        spatial: captureSpatialState()
+      };
+
+      ProjectFiles.assertNoCredentialKeys(payload);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+    } catch (_) {
+      // Session recovery is best-effort. Do not interrupt the user or expose internals.
+    }
+  }
+
+  function restoreSessionRecovery() {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+
+    try {
+      const payload = JSON.parse(raw);
+      if (payload?.sessionVersion !== SESSION_VERSION || payload?.toolId !== ProjectFiles.TOOL_ID) return false;
+      ProjectFiles.assertNoCredentialKeys(payload);
+
+      applyEditableState(payload.state);
+      state.mapGeoJson = ProjectFiles.sanitizeGeoJson(payload.spatial?.geojson || { type: 'FeatureCollection', features: [] });
+      state.mapCamera = ProjectFiles.sanitizeCamera(payload.spatial?.camera || state.mapCamera);
+      syncMapStatsFromGeoJson(state.mapGeoJson);
+
+      projectMeta.id = typeof payload.project?.id === 'string' && payload.project.id.length >= 20
+        ? payload.project.id
+        : ProjectFiles.createUuid();
+      projectMeta.createdAt = Number.isFinite(Date.parse(payload.project?.createdAt))
+        ? payload.project.createdAt
+        : new Date().toISOString();
+      projectMeta.updatedAt = Number.isFinite(Date.parse(payload.project?.updatedAt))
+        ? payload.project.updatedAt
+        : '';
+      projectMeta.lastSavedHash = String(payload.project?.lastSavedHash || '');
+
+      $('projectName').value = String(payload.project?.name || 'New Fence Project').slice(0, 160);
+      populateInputsFromState();
+      renderGateList();
+      renderPriceDrawer();
+      setStep(state.activeStep);
+      return true;
+    } catch (_) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return false;
+    }
+  }
+
+  function stableStringify(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+    return '{' + Object.keys(value).sort().map(key =>
+      JSON.stringify(key) + ':' + stableStringify(value[key])
+    ).join(',') + '}';
+  }
+
+  function currentProjectHash() {
+    const payload = {
+      name: $('projectName').value.trim(),
+      state: captureEditableState(),
+      spatial: {
+        geojson: ProjectFiles.sanitizeGeoJson(runtime.draw ? runtime.draw.getAll() : state.mapGeoJson)
+      }
+    };
+    const text = stableStringify(payload);
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function hasUnsavedChanges() {
+    return !projectMeta.lastSavedHash || currentProjectHash() !== projectMeta.lastSavedHash;
+  }
+
+  function hasMeaningfulWork() {
+    const name = $('projectName').value.trim();
+    const notes = $('projectNotes').value.trim();
+    if (name && name !== 'New Fence Project') return true;
+    if (notes || $('projectAddress').value.trim()) return true;
+    if (state.mapGeoJson?.features?.length) return true;
+    if (state.gates.length) return true;
+    if (state.wireType !== DEFAULT_STATE.wireType ||
+        state.wireLines !== DEFAULT_STATE.wireLines ||
+        state.wireWaste !== DEFAULT_STATE.wireWaste ||
+        state.postType !== DEFAULT_STATE.postType ||
+        state.postSpacing !== DEFAULT_STATE.postSpacing ||
+        state.electricFence !== DEFAULT_STATE.electricFence ||
+        state.laborPerFt !== DEFAULT_STATE.laborPerFt ||
+        state.taxRate !== DEFAULT_STATE.taxRate ||
+        state.contingencyRate !== DEFAULT_STATE.contingencyRate) return true;
+    return Object.keys(Core.DEFAULT_PRICES).some(key => state.prices[key] !== Core.DEFAULT_PRICES[key]);
+  }
+
+  function updateProjectStatus() {
+    const container = $('projectStatus');
+    const text = $('projectStatusText');
+
+    if (projectMeta.statusOverride) {
+      text.textContent = projectMeta.statusOverride;
+      container.className = `project-status ${projectMeta.statusOverrideClass || ''}`.trim();
+      return;
+    }
+
+    if (projectMeta.lastSavedHash && !hasUnsavedChanges()) {
+      text.textContent = 'Saved';
+      container.className = 'project-status saved';
+    } else if (projectMeta.lastSavedHash) {
+      text.textContent = 'Unsaved changes';
+      container.className = 'project-status';
+    } else {
+      text.textContent = 'Unsaved';
+      container.className = 'project-status';
+    }
+  }
+
+  function setTemporaryProjectStatus(text, className = '', duration = 1800) {
+    clearTimeout(runtime.statusTimer);
+    projectMeta.statusOverride = text;
+    projectMeta.statusOverrideClass = className;
+    updateProjectStatus();
+    runtime.statusTimer = setTimeout(() => {
+      projectMeta.statusOverride = '';
+      projectMeta.statusOverrideClass = '';
+      updateProjectStatus();
+    }, duration);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Export / share
+  // ---------------------------------------------------------------------------
+
+  function projectPayload() {
+    calculate();
+    return {
+      projectId: projectMeta.id,
+      name: $('projectName').value.trim() || 'Fence Project',
+      address: $('projectAddress').value.trim(),
+      lengthFeet: round(state.mapStats.lengthFeet, 2),
+      netFenceFeet: round(state.calculation.netFenceFeet, 2),
+      cornerCount: state.mapStats.nodeCount,
+      gateCount: state.calculation.gateCount,
+      gateOpeningFeet: round(state.calculation.gateOpeningFeet, 2),
+      wireType: Core.WIRE_META[state.wireType]?.label || state.wireType,
+      wireLines: state.wireLines,
+      postType: state.postType === 'combination'
+        ? 'Combination'
+        : (Core.POST_META[state.postType]?.label || state.postType),
+      postSpacing: state.postSpacing,
+      electricFence: state.electricFence,
+      energizerType: state.energizerType,
+      materialSubtotal: round(state.totals.materials, 2),
+      labor: round(state.totals.labor, 2),
+      contingency: round(state.totals.contingency, 2),
+      tax: round(state.totals.tax, 2),
+      estimatedTotal: round(state.totals.total, 2),
+      coordinates: state.mapStats.coordinates.map(pair => [round(pair[0], 6), round(pair[1], 6)]),
+      unitSystem: state.unitSystem,
+      notes: $('projectNotes').value.trim(),
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  function exportCsv() {
+    calculate();
+    const project = projectPayload();
+    const rows = [
+      ['RanchAssist Fence Cost Estimate'],
+      ['Project', project.name],
+      ['Address', project.address],
+      ['Mapped Length (ft)', project.lengthFeet],
+      ['Net Fence (ft)', project.netFenceFeet],
+      ['Mapped Nodes', project.cornerCount],
+      ['Gate Count', project.gateCount],
+      [],
+      ['Category','Item','Quantity','Unit','Unit Cost','Line Total'],
+      ...state.bom.map(row => [row.category, row.item, row.qty, row.unit, row.unitCost, row.total]),
+      [],
+      ['Materials','','','','', round(project.materialSubtotal,2)],
+      ['Labor','','','','', round(project.labor,2)],
+      ['Overhead / Contingency','','','','', round(project.contingency,2)],
+      ['Tax','','','','', round(project.tax,2)],
+      ['Estimated Total','','','','', round(project.estimatedTotal,2)]
+    ];
+
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    downloadBlob(csv, `${ProjectFiles.sanitizeFilename(project.name)}_BOM.csv`, 'text/csv;charset=utf-8');
+    toast('BOM exported as CSV.', 'success');
+    closeActionMenus();
+  }
+
+  function exportGeoJson() {
+    try {
+      const geojson = ProjectFiles.sanitizeGeoJson(runtime.draw ? runtime.draw.getAll() : state.mapGeoJson);
+      const payload = {
+        type: 'FeatureCollection',
+        name: $('projectName').value.trim() || 'Fence Cost Estimate',
+        features: geojson.features.map((feature, index) => ({
+          ...feature,
+          properties: {
+            ranchAssistTool: ProjectFiles.TOOL_ID,
+            featureType: 'fence-line',
+            segmentIndex: index + 1
+          }
+        }))
+      };
+      ProjectFiles.assertNoCredentialKeys(payload);
+      downloadBlob(
+        JSON.stringify(payload, null, 2),
+        `${ProjectFiles.sanitizeFilename($('projectName').value)}_Fence.geojson`,
+        'application/geo+json'
+      );
+      toast('Fence geometry exported as GeoJSON.', 'success');
+    } catch (_) {
+      toast('GeoJSON export could not be created from the current map.', 'error');
+    }
+    closeActionMenus();
+  }
+
+  function exportMapPng() {
+    if (!runtime.mapReady || !runtime.map) {
+      toast('Map image export is unavailable because the map service is not ready.', 'error');
+      return;
+    }
+
+    try {
+      runtime.map.getCanvas().toBlob(blob => {
+        if (!blob) {
+          toast('Map image export could not be created.', 'error');
+          return;
+        }
+        downloadBlob(
+          blob,
+          `${ProjectFiles.sanitizeFilename($('projectName').value)}_Map.png`,
+          'image/png'
+        );
+        toast('Map exported as PNG.', 'success');
+      }, 'image/png');
+    } catch (_) {
+      toast('Map image export could not be created.', 'error');
+    }
+    closeActionMenus();
+  }
+
+  function exportPdf() {
+    closeActionMenus();
+    toast('Print dialog opened. Choose “Save as PDF” to create a PDF report.');
+    setTimeout(() => window.print(), 120);
+  }
+
+  function printReport() {
+    closeActionMenus();
+    window.print();
+  }
+
+  async function copySummary() {
+    const text = buildPlainTextShare(projectPayload(), state.bom, '');
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Project summary copied.', 'success');
+    } catch (_) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand('copy');
+      textarea.remove();
+      toast(ok ? 'Project summary copied.' : 'Could not copy the summary on this device.', ok ? 'success' : 'error');
+    }
+    closeActionMenus();
+  }
+
+  function openShareModal() {
+    calculate();
+    $('shareSubject').value = `${$('projectName').value.trim() || 'Fence Project'} — Fence Estimate`;
+    $('shareMessage').value = '';
+
+    if (!runtimeConfig.featureFlags.emailShare || !runtimeConfig.services.emailConfigured) {
+      $('shareNotice').className = 'notice error';
+      $('shareNotice').textContent = 'Email sharing is unavailable in this deployment. Use Copy Summary or another export option instead.';
+      $('sendShareBtn').disabled = true;
+    } else {
+      $('shareNotice').className = 'notice';
+      $('shareNotice').textContent = 'The email includes project specifications, mapped-path statistics, the bill of materials, and the estimated total.';
+      $('sendShareBtn').disabled = false;
+    }
+
+    $('shareModal').classList.remove('hidden');
+    closeActionMenus();
+    setTimeout(() => $('shareTo').focus(), 40);
+  }
+
+  function closeShareModal() {
+    $('shareModal').classList.add('hidden');
+  }
+
+  function isAppsScript() {
+    return Boolean(window.google?.script?.run);
+  }
+
+  function sendEstimate() {
+    const to = $('shareTo').value.trim();
+    if (!to) {
+      setShareNotice('Enter at least one recipient email address.', 'error');
+      return;
+    }
+
+    const subject = $('shareSubject').value.trim() || 'Fence Estimate';
+    const message = $('shareMessage').value.trim();
+    const payload = {
+      to,
+      subject,
+      message,
+      project: projectPayload(),
+      bom: state.bom
+    };
+
+    if (!runtimeConfig.featureFlags.emailShare) {
+      setShareNotice('Email sharing is unavailable in this deployment. Use Copy Summary instead.', 'error');
+      return;
+    }
+
+    if (!isAppsScript()) {
+      const recipients = to.split(/[;,\s]+/).filter(Boolean).join(',');
+      const body = buildPlainTextShare(payload.project, state.bom, message);
+      window.location.href =
+        `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      setShareNotice('Your email application should open with the estimate prefilled.', 'success');
+      return;
+    }
+
+    $('sendShareBtn').disabled = true;
+    $('sendShareBtn').textContent = 'Sending…';
+
+    google.script.run
+      .withSuccessHandler(result => {
+        $('sendShareBtn').disabled = false;
+        $('sendShareBtn').textContent = 'Send Estimate';
+        if (result?.ok) {
+          setShareNotice(result.message || 'Estimate sent.', 'success');
+          toast('Estimate sent successfully.', 'success');
+          setTimeout(closeShareModal, 850);
+        } else {
+          setShareNotice(result?.message || 'Unable to send estimate.', 'error');
+        }
+      })
+      .withFailureHandler(() => {
+        $('sendShareBtn').disabled = false;
+        $('sendShareBtn').textContent = 'Send Estimate';
+        setShareNotice('Email sharing is temporarily unavailable. Your project data has not been lost.', 'error');
+      })
+      .sendEstimate(payload);
+  }
+
+  function setShareNotice(text, type) {
+    const element = $('shareNotice');
+    element.className = `notice ${type || ''}`.trim();
+    element.textContent = text;
+  }
+
+  function buildPlainTextShare(project, bom, message) {
+    const lines = [
+      'RANCHASSIST™ / FENCE COST ESTIMATOR',
+      'SmoothWireFence.com',
+      project.name,
+      project.address,
+      '',
+      `Mapped length: ${qty(project.lengthFeet)} ft`,
+      `Net fence: ${qty(project.netFenceFeet)} ft`,
+      `Mapped nodes: ${project.cornerCount}`,
+      `Gates: ${project.gateCount}`,
+      '',
+      'BILL OF MATERIALS'
+    ];
+
+    bom.forEach(row =>
+      lines.push(`- ${row.item}: ${qty(row.qty)} ${row.unit} × ${money(row.unitCost)} = ${money(row.total)}`));
+
+    lines.push(
+      '',
+      `Materials: ${money(project.materialSubtotal)}`,
+      `Labor: ${money(project.labor)}`,
+      `Overhead / contingency: ${money(project.contingency)}`,
+      `Tax: ${money(project.tax)}`,
+      `ESTIMATED TOTAL: ${money(project.estimatedTotal)}`
+    );
+
+    if (message || project.notes) {
+      lines.push('', 'NOTES', [message, project.notes].filter(Boolean).join('\n\n'));
+    }
+
+    lines.push(
+      '',
+      'Planning estimate only. Verify field conditions, utility locations, applicable requirements, supplier pricing, and final installation requirements.'
+    );
+
+    return lines.filter((line, index, all) => !(line === '' && all[index - 1] === '')).join('\n');
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function downloadBlob(content, filename, type) {
+    const blob = content instanceof Blob ? content : new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1200);
+  }
+
+  function closeActionMenus() {
+    $$('.action-menu[open]').forEach(menu => menu.removeAttribute('open'));
+  }
+
+  function toast(message, type = 'default') {
+    const wrap = $('toastWrap');
+    const element = document.createElement('div');
+    element.className = `toast ${type || ''}`.trim();
+    element.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    element.textContent = String(message || '');
+    wrap.appendChild(element);
+
+    setTimeout(() => {
+      element.style.opacity = '0';
+      element.style.transform = 'translateY(8px)';
+      setTimeout(() => element.remove(), 220);
+    }, 3400);
+  }
+
+  init();
+})();
+</script>
+
+
+</body></html>
